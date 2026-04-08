@@ -150,6 +150,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:13px;font-weight:500;padding:10px 20px;border-radius:var(--radius);box-shadow:var(--shadow-lift);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
 .toast.show{opacity:1}
 
+/* Landing page */
+.landing{max-width:860px;margin:0 auto;padding:60px 20px 80px}
+.landing-hero{text-align:center;margin-bottom:64px}
+.landing-hero h1{font-size:clamp(28px,5vw,44px);font-weight:700;letter-spacing:-0.5px;margin-bottom:12px}
+.landing-hero h1 span{color:var(--accent)}
+.landing-hero p{font-size:16px;color:var(--text-muted);max-width:520px;margin:0 auto 28px;line-height:1.7}
+.landing-cta{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;font-family:var(--font);font-size:15px;font-weight:600;padding:13px 28px;border-radius:var(--radius);border:none;cursor:pointer;transition:opacity .15s;text-decoration:none}
+.landing-cta:hover{opacity:.88}
+.landing-section{margin-bottom:56px}
+.landing-section h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text-hint);margin-bottom:20px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.step{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:20px}
+.step-num{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);margin-bottom:8px}
+.step h3{font-size:14px;font-weight:600;margin-bottom:4px}
+.step p{font-size:13px;color:var(--text-muted);line-height:1.55}
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.role-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius);padding:14px 16px}
+.role-abbr{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.role-full{font-size:12px;color:var(--text-muted);line-height:1.4}
+.raci-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:0}
+.raci-def{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted)}
+.landing-footer{text-align:center;font-size:12px;color:var(--text-hint);margin-top:48px;padding-top:24px;border-top:1px solid var(--border-light)}
+@media(max-width:600px){.landing{padding:40px 16px 60px}.steps,.roles{grid-template-columns:1fr}}
+
 @media(max-width:600px){
   .tab-group{overflow-x:auto;width:100%}
   .activity-label{font-size:12px}
@@ -159,7 +183,61 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 </head>
 <body>
 
-<div class="modal-overlay" id="lobbyModal">
+<div id="landingPage">
+  <div class="landing">
+    <div class="landing-hero">
+      <h1>RACI <span>Workshop</span></h1>
+      <p>A real-time collaborative tool for Salesforce teams to align on roles and responsibilities — no login, no setup, just share a link and go.</p>
+      <button class="landing-cta" onclick="showLobby()">Start a workshop</button>
+    </div>
+
+    <div class="landing-section">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step"><div class="step-num">01</div><h3>Create a room</h3><p>Get a 6-character room code instantly — no account needed.</p></div>
+        <div class="step"><div class="step-num">02</div><h3>Share the link</h3><p>Send the URL to your team. Anyone with the link can join.</p></div>
+        <div class="step"><div class="step-num">03</div><h3>Assign RACI</h3><p>Each person assigns R/A/C/I values per role and activity independently.</p></div>
+        <div class="step"><div class="step-num">04</div><h3>Compare &amp; align</h3><p>See everyone's answers side-by-side with consensus scores and a heatmap overview.</p></div>
+      </div>
+    </div>
+
+    <div class="landing-section">
+      <h2>RACI values</h2>
+      <div class="raci-legend">
+        <div class="raci-def"><span class="key-badge chip-R">R</span> Responsible — does the work</div>
+        <div class="raci-def"><span class="key-badge chip-A">A</span> Accountable — owns the outcome</div>
+        <div class="raci-def"><span class="key-badge chip-C">C</span> Consulted — input before decisions</div>
+        <div class="raci-def"><span class="key-badge chip-I">I</span> Informed — kept in the loop</div>
+      </div>
+    </div>
+
+    <div class="landing-section">
+      <h2>Roles covered</h2>
+      <div class="roles">
+        <div class="role-card"><div class="role-abbr">SSA</div><div class="role-full">Senior Solution Architect</div></div>
+        <div class="role-card"><div class="role-abbr">PA</div><div class="role-full">Principal Advisor — SF Delivery</div></div>
+        <div class="role-card"><div class="role-abbr">PM</div><div class="role-full">Platform Manager</div></div>
+        <div class="role-card"><div class="role-abbr">DOL</div><div class="role-full">DevOps Lead</div></div>
+        <div class="role-card"><div class="role-abbr">PTL</div><div class="role-full">Platform Technical Lead</div></div>
+      </div>
+    </div>
+
+    <div class="landing-section">
+      <h2>50 activities across 5 domains</h2>
+      <div class="steps">
+        <div class="step"><h3>Architecture &amp; design</h3><p>Multi-org strategy, solution design, integration patterns, data models, and more.</p></div>
+        <div class="step"><h3>Delivery governance</h3><p>Programme roadmap, vendor management, stakeholder engagement, release governance.</p></div>
+        <div class="step"><h3>Platform operations</h3><p>Org health, user management, sandboxes, incident response, support cases.</p></div>
+        <div class="step"><h3>DevOps &amp; engineering</h3><p>CI/CD pipelines, branching strategy, automated testing, code quality gates.</p></div>
+        <div class="step"><h3>Team delivery &amp; people</h3><p>Sprint planning, mentoring, code review, onboarding, best practices.</p></div>
+      </div>
+    </div>
+
+    <div class="landing-footer">Everything is ephemeral — all data disappears when the session ends. Nothing is stored.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="lobbyModal" style="display:none">
 <div class="modal" id="lobbyContent"></div>
 </div>
 
@@ -172,6 +250,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <div class="participants-bar" id="participantsBar"></div>
       <button class="share-btn" onclick="shareRoom()">Invite others</button>
+      <button class="share-btn" id="endSessionBtn" style="display:none;background:var(--incorrect-bg);color:#A32D2D;border-color:var(--incorrect-border)" onclick="endSession()">End session</button>
     </div>
   </div>
   <div class="instructions">
@@ -276,6 +355,7 @@ const BASE_TOTAL=BASE_DOMAINS.reduce((s,d)=>s+d.rows.length,0);
 let myName="";
 let roomId="";
 let ws=null;
+let creatorName="";
 let currentView="assign";
 let currentRole="ssa";
 let showingResults=false;
@@ -311,7 +391,16 @@ function connectToRoom(room, name){
     if(msg.type==="sync"){
       participants=msg.participants||{};
       customActivities=msg.customActivities||[];
+      if(msg.creatorName)creatorName=msg.creatorName;
       renderAll();
+    } else if(msg.type==="room_closed"){
+      ws.onclose=null; // prevent reconnect
+      ws.close();
+      showToast("Session ended by the host");
+      setTimeout(()=>{
+        history.replaceState(null,"",location.pathname);
+        location.reload();
+      },2000);
     }
   };
 }
@@ -384,6 +473,7 @@ function doJoinCode(){
 }
 
 function enterRoom(room,name){
+  document.getElementById("landingPage").style.display="none";
   document.getElementById("lobbyModal").style.display="none";
   document.getElementById("mainApp").style.display="block";
   document.getElementById("roomLabel").textContent="Room: "+room;
@@ -402,6 +492,10 @@ function shareRoom(){
     prompt("Share this link:",url);
   }
 }
+function endSession(){
+  if(!confirm("End this session for everyone? All data will be lost."))return;
+  send({type:"close_room"});
+}
 function showToast(msg){
   const el=document.getElementById("toast");
   el.textContent=msg;el.classList.add("show");
@@ -412,6 +506,8 @@ function showToast(msg){
 function renderAll(){renderParticipants();renderViewTabs();renderRoleTabs();renderActionBtns();renderChipTray();renderMainContent();}
 
 function renderParticipants(){
+  const btn=document.getElementById("endSessionBtn");
+  if(btn)btn.style.display=(myName&&creatorName&&myName===creatorName)?"":"none";
   const bar=document.getElementById("participantsBar");
   const names=Object.keys(participants).sort();
   const tot=BASE_TOTAL+customActivities.length;
@@ -655,7 +751,16 @@ function isPartial(u,c){const up=u.split(",").map(x=>x.trim()),cp=c.split(",").m
 function chipCls(v){if(v.includes("R")&&v.includes("A"))return"chip-R";if(v.includes("A"))return"chip-A";if(v.includes("R"))return"chip-R";if(v.includes("C"))return"chip-C";if(v==="—")return"";return"chip-I";}
 
 // ==================== INIT ====================
-renderLobby();
+function showLobby(){
+  document.getElementById("lobbyModal").style.display="flex";
+  renderLobby();
+}
+
+// If joining via ?room= link, skip landing and show join modal directly
+if(new URLSearchParams(location.search).get("room")){
+  document.getElementById("landingPage").style.display="none";
+  showLobby();
+}
 </script>
 </body>
 </html>

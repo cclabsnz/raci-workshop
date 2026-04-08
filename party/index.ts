@@ -17,6 +17,7 @@ interface CustomActivity {
 interface RoomState {
   participants: Record<string, Participant>;
   customActivities: CustomActivity[];
+  creatorName: string;
 }
 
 const COLORS = [
@@ -25,7 +26,7 @@ const COLORS = [
 ];
 
 export default class RACIServer implements Party.Server {
-  state: RoomState = { participants: {}, customActivities: [] };
+  state: RoomState = { participants: {}, customActivities: [], creatorName: "" };
   colorIndex = 0;
 
   constructor(readonly room: Party.Room) {}
@@ -36,6 +37,7 @@ export default class RACIServer implements Party.Server {
       type: "sync",
       participants: this.state.participants,
       customActivities: this.state.customActivities,
+      creatorName: this.state.creatorName,
     }));
   }
 
@@ -46,6 +48,8 @@ export default class RACIServer implements Party.Server {
       case "join": {
         const name = msg.name?.trim();
         if (!name) return;
+        // First person to join becomes the creator
+        if (!this.state.creatorName) this.state.creatorName = name;
         // If name already taken by a disconnected user, reclaim it
         if (this.state.participants[name]) {
           this.state.participants[name].connId = sender.id;
@@ -58,6 +62,13 @@ export default class RACIServer implements Party.Server {
           };
         }
         this.broadcast();
+        break;
+      }
+
+      case "close_room": {
+        const p = this.findParticipant(sender.id);
+        if (!p || p.name !== this.state.creatorName) return;
+        this.room.broadcast(JSON.stringify({ type: "room_closed" }));
         break;
       }
 
@@ -130,6 +141,7 @@ export default class RACIServer implements Party.Server {
         type: "sync",
         participants: this.state.participants,
         customActivities: this.state.customActivities,
+        creatorName: this.state.creatorName,
       })
     );
   }
