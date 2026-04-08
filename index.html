@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RACI Workshop — Salesforce Team Alignment</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F8F7F4;--surface:#FFFFFF;--surface-alt:#F1EFE8;--text:#1A1A18;--text-muted:#6E6D68;--text-hint:#9C9A92;
+  --border:#E2E0D8;--border-light:#EDEBE4;--accent:#534AB7;--accent-light:#EEEDFE;
+  --r-bg:#E6F1FB;--r-text:#0C447C;--r-border:#85B7EB;
+  --a-bg:#E1F5EE;--a-text:#085041;--a-border:#5DCAA5;
+  --c-bg:#FAECE7;--c-text:#712B13;--c-border:#F0997B;
+  --i-bg:#F1EFE8;--i-text:#6E6D68;--i-border:#D3D1C7;
+  --correct-bg:#E1F5EE;--correct-border:#5DCAA5;
+  --incorrect-bg:#FCEBEB;--incorrect-border:#F09595;
+  --partial-bg:#FAEEDA;--partial-border:#FAC775;
+  --radius:8px;--radius-lg:12px;--radius-xl:16px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.04);--shadow-md:0 4px 12px rgba(0,0,0,0.06);--shadow-lift:0 8px 24px rgba(0,0,0,0.1);
+  --font:'DM Sans',-apple-system,sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+.app{max-width:1280px;margin:0 auto;padding:24px 20px 60px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border-radius:var(--radius-xl);padding:32px;width:min(460px,90vw);box-shadow:var(--shadow-lift)}
+.modal h2{font-size:22px;font-weight:700;margin-bottom:4px}
+.modal p{font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
+.modal label{display:block;font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:6px}
+.modal input{width:100%;font-family:var(--font);font-size:15px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius);outline:none;transition:border-color .15s;margin-bottom:16px}
+.modal input:focus{border-color:var(--accent)}
+.modal-btn{width:100%;font-family:var(--font);font-size:15px;font-weight:600;padding:12px;border:none;border-radius:var(--radius);background:var(--accent);color:white;cursor:pointer;transition:opacity .15s;margin-bottom:8px}
+.modal-btn:hover{opacity:.9}
+.modal-btn:disabled{opacity:.4;cursor:default}
+.modal-btn.secondary{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.room-code-display{background:var(--surface-alt);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;text-align:center}
+.room-code-display .code{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:2px;color:var(--accent)}
+.room-code-display .hint{font-size:12px;color:var(--text-hint);margin-top:4px}
+.or-divider{text-align:center;color:var(--text-hint);font-size:13px;margin:12px 0;position:relative}
+.or-divider::before,.or-divider::after{content:"";position:absolute;top:50%;width:40%;height:.5px;background:var(--border)}
+.or-divider::before{left:0}
+.or-divider::after{right:0}
+
+/* Connection status */
+.conn-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px;border-radius:12px;margin-left:8px}
+.conn-dot{width:7px;height:7px;border-radius:50%}
+.conn-online .conn-dot{background:#1D9E75}
+.conn-offline .conn-dot{background:#E24B4A}
+.conn-online{background:var(--correct-bg);color:var(--a-text)}
+.conn-offline{background:var(--incorrect-bg);color:#A32D2D}
+
+/* Header */
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.header-left h1{font-size:24px;font-weight:700;letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.header-left p{font-size:13px;color:var(--text-muted)}
+.participants-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.participant-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;background:var(--surface);border:.5px solid var(--border)}
+.participant-dot{width:8px;height:8px;border-radius:50%}
+.participant-pill.is-me{border-color:var(--accent);background:var(--accent-light)}
+.share-btn{font-family:var(--font);font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;border:1.5px dashed var(--accent);background:transparent;color:var(--accent);cursor:pointer;transition:all .15s}
+.share-btn:hover{background:var(--accent-light);border-style:solid}
+
+/* Controls */
+.view-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px}
+.tab-group{display:flex;gap:3px;background:var(--surface-alt);border-radius:var(--radius);padding:3px}
+.tab-btn{font-family:var(--font);font-size:13px;font-weight:500;padding:7px 14px;border-radius:6px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-sm)}
+.spacer{flex:1}
+.btn{font-family:var(--font);font-size:13px;font-weight:500;padding:8px 16px;border-radius:var(--radius);border:.5px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--text-hint)}
+.btn-accent{background:var(--accent);color:white;border-color:var(--accent)}
+.btn-accent:hover{opacity:.9;border-color:var(--accent)}
+.btn-danger{color:#A32D2D;border-color:#F09595}
+.btn-danger:hover{background:#FCEBEB}
+.btn-sm{font-size:12px;padding:5px 12px}
+.instructions{display:flex;flex-wrap:wrap;gap:16px;padding:12px 16px;background:var(--surface);border:.5px solid var(--border-light);border-radius:var(--radius-lg);margin-bottom:20px;font-size:12px;color:var(--text-muted)}
+.instructions div{display:flex;align-items:center;gap:6px}
+.key-badge{width:28px;height:22px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;border:1px solid}
+
+/* Chip tray */
+.chip-tray{display:flex;gap:8px;margin-bottom:20px;align-items:center}
+.chip-tray-label{font-size:12px;font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+.raci-chip{display:inline-flex;align-items:center;justify-content:center;width:40px;height:34px;font-family:var(--mono);font-size:14px;font-weight:600;border-radius:var(--radius);cursor:grab;user-select:none;transition:transform .1s,box-shadow .15s;border:1.5px solid}
+.raci-chip:active,.raci-chip.dragging{cursor:grabbing;transform:scale(1.08);box-shadow:var(--shadow-lift);z-index:100}
+.chip-R{background:var(--r-bg);color:var(--r-text);border-color:var(--r-border)}
+.chip-A{background:var(--a-bg);color:var(--a-text);border-color:var(--a-border)}
+.chip-C{background:var(--c-bg);color:var(--c-text);border-color:var(--c-border)}
+.chip-I{background:var(--i-bg);color:var(--i-text);border-color:var(--i-border)}
+
+/* Score */
+.score-bar{display:flex;align-items:center;gap:16px;padding:12px 18px;background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);margin-bottom:20px}
+.score-bar.hidden{display:none}
+.score-item{font-size:13px;color:var(--text-muted)}
+.score-item strong{font-weight:600;color:var(--text);font-family:var(--mono);font-size:15px}
+.score-fill{height:6px;border-radius:3px;background:var(--border-light);flex:1;overflow:hidden}
+.score-fill-inner{height:100%;border-radius:3px;transition:width .4s ease}
+
+/* Activities */
+.domain-group{margin-bottom:24px}
+.domain-header{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;padding:8px 0;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.activity-row{display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:4px;background:var(--surface);border:.5px solid var(--border-light);border-radius:var(--radius);transition:border-color .15s,background .15s}
+.activity-row:hover{border-color:var(--border)}
+.activity-row.drag-over{border-color:var(--accent);background:var(--accent-light)}
+.activity-row.result-correct{border-color:var(--correct-border);background:var(--correct-bg)}
+.activity-row.result-incorrect{border-color:var(--incorrect-border);background:var(--incorrect-bg)}
+.activity-row.result-partial{border-color:var(--partial-border);background:var(--partial-bg)}
+.activity-row.is-custom{border-left:3px solid var(--accent)}
+.activity-label{flex:1;font-size:13px;line-height:1.4}
+.custom-badge{font-size:10px;font-weight:500;padding:1px 6px;border-radius:6px;background:var(--accent-light);color:var(--accent);margin-left:6px;white-space:nowrap}
+.drop-zone{width:44px;height:34px;border:1.5px dashed var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s;flex-shrink:0;cursor:pointer;position:relative}
+.drop-zone:hover{border-color:var(--text-hint)}
+.drop-zone.drag-over{border-color:var(--accent);border-style:solid;background:var(--accent-light)}
+.drop-zone.filled{border-style:solid}
+.drop-zone .placed-chip{font-family:var(--mono);font-size:14px;font-weight:600;width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:6px}
+.drop-zone .remove-x{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--text-muted);color:white;font-size:10px;display:none;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+.drop-zone:hover .remove-x{display:flex}
+.answer-hint{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text-hint);opacity:0;transition:opacity .2s;position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);white-space:nowrap}
+.activity-row.result-incorrect .answer-hint,.activity-row.result-partial .answer-hint{opacity:1}
+.add-activity-row{display:flex;gap:8px;margin-top:6px;align-items:center}
+.add-activity-input{flex:1;font-family:var(--font);font-size:13px;padding:7px 12px;border:1.5px dashed var(--border);border-radius:var(--radius);outline:none;background:transparent;color:var(--text);transition:border-color .15s}
+.add-activity-input:focus{border-color:var(--accent);border-style:solid}
+.add-activity-input::placeholder{color:var(--text-hint)}
+.add-btn{font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border-radius:var(--radius);border:1.5px dashed var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.add-btn:hover{border-color:var(--accent);color:var(--accent);border-style:solid}
+
+/* Compare */
+.compare-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:20px}
+.compare-table{width:100%;border-collapse:collapse;font-size:13px}
+.compare-table th,.compare-table td{padding:7px 6px;text-align:center;border-bottom:.5px solid var(--border-light)}
+.compare-table th{font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-hint);position:sticky;top:0;background:var(--bg);z-index:2}
+.compare-table th:first-child{text-align:left;min-width:200px}
+.compare-table td:first-child{text-align:left;font-size:13px;padding-right:12px}
+.compare-table .domain-row td{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:14px 6px 6px;border-bottom:none}
+.cell-mini{font-family:var(--mono);font-size:12px;font-weight:600;width:32px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px}
+.cell-match{outline:2px solid var(--correct-border);outline-offset:-1px}
+.cell-mismatch{outline:2px solid var(--incorrect-border);outline-offset:-1px}
+.consensus-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.consensus-full{background:var(--correct-bg);color:var(--a-text)}
+.consensus-partial{background:var(--partial-bg);color:#854F0B}
+.consensus-none{background:var(--incorrect-bg);color:#A32D2D}
+.heatmap-label{font-size:11px;color:var(--text-muted);text-align:right;padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heatmap-cell{width:100%;aspect-ratio:1;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:600;transition:transform .1s}
+.heatmap-cell:hover{transform:scale(1.15);z-index:2}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:13px;font-weight:500;padding:10px 20px;border-radius:var(--radius);box-shadow:var(--shadow-lift);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1}
+
+@media(max-width:600px){
+  .tab-group{overflow-x:auto;width:100%}
+  .activity-label{font-size:12px}
+  .raci-chip,.drop-zone{width:36px;height:30px}
+}
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="lobbyModal">
+<div class="modal" id="lobbyContent"></div>
+</div>
+
+<div class="app" style="display:none" id="mainApp">
+  <div class="header">
+    <div class="header-left">
+      <h1>RACI workshop <span class="conn-status conn-offline" id="connStatus"><span class="conn-dot"></span><span id="connLabel">connecting</span></span></h1>
+      <p>Assign RACI values per role. Add activities. Compare in real time. <span style="font-family:var(--mono);font-size:11px;color:var(--text-hint)" id="roomLabel"></span></p>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="participants-bar" id="participantsBar"></div>
+      <button class="share-btn" onclick="shareRoom()">Invite others</button>
+    </div>
+  </div>
+  <div class="instructions">
+    <div><span class="key-badge chip-R">R</span> Responsible</div>
+    <div><span class="key-badge chip-A">A</span> Accountable</div>
+    <div><span class="key-badge chip-C">C</span> Consulted</div>
+    <div><span class="key-badge chip-I">I</span> Informed</div>
+    <div style="color:var(--accent)">+ Add activities to any domain</div>
+  </div>
+  <div class="view-controls">
+    <div class="tab-group" id="viewTabs"></div>
+    <div class="tab-group" id="roleTabs"></div>
+    <div class="spacer"></div>
+    <div id="actionBtns"></div>
+  </div>
+  <div id="chipTray"></div>
+  <div class="score-bar hidden" id="scoreBar">
+    <div class="score-item">Score: <strong id="scoreText">0%</strong></div>
+    <div class="score-fill"><div class="score-fill-inner" id="scoreFill" style="width:0"></div></div>
+    <div class="score-item" id="scoreDetail"></div>
+  </div>
+  <div id="mainContent"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== CONFIG ====================
+// UPDATE THIS after deploying PartyKit
+const PARTYKIT_HOST = "raci-workshop.YOUR_USERNAME.partykit.dev";
+
+// ==================== DATA ====================
+const ROLES=[
+  {id:"ssa",label:"SSA",full:"Senior Solution Architect"},
+  {id:"pa",label:"PA",full:"Principal Advisor — SF Delivery"},
+  {id:"pm",label:"PM",full:"Platform Manager"},
+  {id:"dol",label:"DOL",full:"DevOps Lead"},
+  {id:"ptl",label:"PTL",full:"Platform Technical Lead"},
+];
+const BASE_DOMAINS=[
+  {id:"arch",name:"Architecture & design",color:"#0C447C",rows:[
+    {id:"b0",a:"Multi-org architecture strategy",ans:{ssa:"A,R",pa:"C",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b1",a:"Solution design for new programmes",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"C",ptl:"I"}},
+    {id:"b2",a:"Architecture decision records",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"I"}},
+    {id:"b3",a:"Integration pattern design",ans:{ssa:"A,R",pa:"I",pm:"C",dol:"C",ptl:"I"}},
+    {id:"b4",a:"Data model design and changes",ans:{ssa:"A,R",pa:"I",pm:"C",dol:"I",ptl:"C"}},
+    {id:"b5",a:"Licensing and product evaluation",ans:{ssa:"A,R",pa:"C",pm:"R",dol:"I",ptl:"I"}},
+    {id:"b6",a:"Reference architecture / patterns library",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"C",ptl:"C"}},
+    {id:"b7",a:"Technical debt assessment and roadmap",ans:{ssa:"A,R",pa:"C",pm:"C",dol:"C",ptl:"C"}},
+    {id:"b8",a:"Complex feature design (OmniStudio, Experience Cloud)",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b9",a:"Technical spikes and POC development",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"C"}},
+  ]},
+  {id:"deliv",name:"Delivery governance & programme",color:"#085041",rows:[
+    {id:"b10",a:"Org Working Group facilitation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b11",a:"Governance framework and ToR",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b12",a:"Vendor delivery management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"I"}},
+    {id:"b13",a:"Programme roadmap and prioritisation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b14",a:"Stakeholder engagement",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"I"}},
+    {id:"b15",a:"Delivery risk management and escalation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"C",ptl:"R"}},
+    {id:"b16",a:"Cross-programme dependency management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b17",a:"Release governance and go/no-go",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"R",ptl:"C"}},
+    {id:"b18",a:"Change control and scope management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b19",a:"Delivery reporting to leadership",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"R"}},
+    {id:"b20",a:"CoE positioning and capability strategy",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b21",a:"Budget and delivery forecasting",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+  ]},
+  {id:"ops",name:"Platform operations",color:"#712B13",rows:[
+    {id:"b22",a:"Org health monitoring and limits",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
+    {id:"b23",a:"User management and security model",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"I",ptl:"I"}},
+    {id:"b24",a:"Sandbox provisioning and management",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"R",ptl:"I"}},
+    {id:"b25",a:"Salesforce release impact assessment",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"C",ptl:"C"}},
+    {id:"b26",a:"Data quality and archival strategy",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"I",ptl:"I"}},
+    {id:"b27",a:"Platform documentation and org inventory",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
+    {id:"b28",a:"Support case management",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"I",ptl:"C"}},
+    {id:"b29",a:"Production incident response",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"C",ptl:"R"}},
+  ]},
+  {id:"devops",name:"DevOps & engineering",color:"#72243E",rows:[
+    {id:"b30",a:"CI/CD pipeline design and maintenance",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"I"}},
+    {id:"b31",a:"Branching strategy and source control",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b32",a:"Automated testing frameworks",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b33",a:"Deployment execution across orgs",ans:{ssa:"I",pa:"C",pm:"C",dol:"A,R",ptl:"I"}},
+    {id:"b34",a:"Code quality gates",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b35",a:"Developer tooling and DX",ans:{ssa:"I",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b36",a:"Environment strategy and refresh cadence",ans:{ssa:"C",pa:"I",pm:"R",dol:"A,R",ptl:"I"}},
+    {id:"b37",a:"Release notes and deployment docs",ans:{ssa:"I",pa:"R",pm:"C",dol:"A,R",ptl:"C"}},
+  ]},
+  {id:"team",name:"Team delivery & people",color:"#3C3489",rows:[
+    {id:"b38",a:"Sprint planning and execution",ans:{ssa:"I",pa:"C",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b39",a:"Daily standups and unblocking",ans:{ssa:"I",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b40",a:"Code review (teaching and quality)",ans:{ssa:"I",pa:"I",pm:"I",dol:"C",ptl:"A,R"}},
+    {id:"b41",a:"Developer mentoring and uplift",ans:{ssa:"C",pa:"C",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b42",a:"Translating designs to user stories",ans:{ssa:"C",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b43",a:"Sprint delivery reporting to PA",ans:{ssa:"I",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b44",a:"Team onboarding and ramp-up",ans:{ssa:"C",pa:"C",pm:"C",dol:"C",ptl:"A,R"}},
+    {id:"b45",a:"Production troubleshooting (code-level)",ans:{ssa:"C",pa:"I",pm:"C",dol:"C",ptl:"A,R"}},
+    {id:"b46",a:"Best practices enforcement",ans:{ssa:"C",pa:"I",pm:"I",dol:"C",ptl:"A,R"}},
+    {id:"b47",a:"Resource and skills gap identification",ans:{ssa:"C",pa:"R",pm:"I",dol:"I",ptl:"A,R"}},
+  ]}
+];
+const BASE_TOTAL=BASE_DOMAINS.reduce((s,d)=>s+d.rows.length,0);
+
+// ==================== STATE ====================
+let myName="";
+let roomId="";
+let ws=null;
+let currentView="assign";
+let currentRole="ssa";
+let showingResults=false;
+let participants={};
+let customActivities=[];
+
+function allRows(domainId){
+  const base=BASE_DOMAINS.find(d=>d.id===domainId);
+  const customs=customActivities.filter(c=>c.domainId===domainId);
+  return[...base.rows,...customs.map(c=>({id:c.id,a:c.activity,ans:null,custom:true,addedBy:c.addedBy}))];
+}
+function myAnswers(){ return participants[myName]?.answers||{}; }
+
+// ==================== ROOM / WEBSOCKET ====================
+function generateRoomId(){
+  const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let r="";for(let i=0;i<6;i++)r+=chars[Math.floor(Math.random()*chars.length)];
+  return r;
+}
+
+function connectToRoom(room, name){
+  roomId=room; myName=name;
+  const protocol=location.protocol==="https:"?"wss":"ws";
+  ws=new WebSocket(`${protocol}://${PARTYKIT_HOST}/party/${roomId}`);
+  ws.onopen=()=>{
+    setConnStatus(true);
+    ws.send(JSON.stringify({type:"join",name:myName}));
+  };
+  ws.onclose=()=>{ setConnStatus(false); setTimeout(()=>connectToRoom(roomId,myName),2000); };
+  ws.onerror=()=>setConnStatus(false);
+  ws.onmessage=(e)=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==="sync"){
+      participants=msg.participants||{};
+      customActivities=msg.customActivities||[];
+      renderAll();
+    }
+  };
+}
+
+function setConnStatus(online){
+  const el=document.getElementById("connStatus");
+  el.className="conn-status "+(online?"conn-online":"conn-offline");
+  document.getElementById("connLabel").textContent=online?"live":"reconnecting";
+}
+
+function send(msg){ if(ws&&ws.readyState===1)ws.send(JSON.stringify(msg)); }
+
+// ==================== LOBBY ====================
+function renderLobby(){
+  const urlRoom=new URLSearchParams(location.search).get("room");
+  const el=document.getElementById("lobbyContent");
+  if(urlRoom){
+    el.innerHTML=`
+      <h2>Join workshop</h2>
+      <p>You've been invited to room <span style="font-family:var(--mono);font-weight:600;color:var(--accent)">${urlRoom}</span>. Enter your name to join.</p>
+      <label for="joinName">Your name</label>
+      <input type="text" id="joinName" placeholder="e.g. Gaurav, Sarah, Mike..." autocomplete="off" autofocus>
+      <button class="modal-btn" id="joinBtn" onclick="doJoin('${urlRoom}')" disabled>Join room</button>`;
+    const inp=document.getElementById("joinName");
+    inp.addEventListener("input",()=>{document.getElementById("joinBtn").disabled=!inp.value.trim()});
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&inp.value.trim())doJoin(urlRoom)});
+  } else {
+    el.innerHTML=`
+      <h2>RACI workshop</h2>
+      <p>Create a room to start a collaborative RACI alignment session. Share the link so others can join. Everything is ephemeral — data disappears when the session ends.</p>
+      <label for="hostName">Your name</label>
+      <input type="text" id="hostName" placeholder="e.g. Gaurav..." autocomplete="off" autofocus>
+      <button class="modal-btn" id="createBtn" onclick="doCreate()" disabled>Create room</button>
+      <div class="or-divider">or</div>
+      <label for="joinCode">Join with room code</label>
+      <input type="text" id="joinCode" placeholder="e.g. ABC123" style="font-family:var(--mono);text-transform:uppercase;text-align:center;letter-spacing:2px">
+      <button class="modal-btn secondary" id="joinCodeBtn" onclick="doJoinCode()" disabled>Join existing room</button>`;
+    const hostInp=document.getElementById("hostName");
+    hostInp.addEventListener("input",()=>{document.getElementById("createBtn").disabled=!hostInp.value.trim()});
+    hostInp.addEventListener("keydown",e=>{if(e.key==="Enter"&&hostInp.value.trim())doCreate()});
+    const codeInp=document.getElementById("joinCode");
+    codeInp.addEventListener("input",()=>{document.getElementById("joinCodeBtn").disabled=!codeInp.value.trim()});
+    codeInp.addEventListener("keydown",e=>{if(e.key==="Enter"&&codeInp.value.trim())doJoinCode()});
+  }
+}
+
+function doCreate(){
+  const name=document.getElementById("hostName").value.trim();
+  if(!name)return;
+  const room=generateRoomId();
+  enterRoom(room,name);
+}
+function doJoin(room){
+  const name=document.getElementById("joinName").value.trim();
+  if(!name)return;
+  enterRoom(room,name);
+}
+function doJoinCode(){
+  const code=document.getElementById("joinCode").value.trim().toUpperCase();
+  // Need a name too — show name input
+  const el=document.getElementById("lobbyContent");
+  el.innerHTML=`
+    <h2>Joining room ${code}</h2>
+    <label for="joinCodeName">Your name</label>
+    <input type="text" id="joinCodeName" placeholder="Your name..." autocomplete="off" autofocus>
+    <button class="modal-btn" id="joinCodeNameBtn" onclick="enterRoom('${code}',document.getElementById('joinCodeName').value.trim())" disabled>Join</button>`;
+  const inp=document.getElementById("joinCodeName");
+  inp.addEventListener("input",()=>{document.getElementById("joinCodeNameBtn").disabled=!inp.value.trim()});
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&inp.value.trim())enterRoom(code,inp.value.trim())});
+}
+
+function enterRoom(room,name){
+  document.getElementById("lobbyModal").style.display="none";
+  document.getElementById("mainApp").style.display="block";
+  document.getElementById("roomLabel").textContent="Room: "+room;
+  // Update URL without reload
+  const url=new URL(location);
+  url.searchParams.set("room",room);
+  history.replaceState(null,"",url);
+  connectToRoom(room,name);
+}
+
+function shareRoom(){
+  const url=location.origin+location.pathname+"?room="+roomId;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>showToast("Link copied — share with your team"));
+  } else {
+    prompt("Share this link:",url);
+  }
+}
+function showToast(msg){
+  const el=document.getElementById("toast");
+  el.textContent=msg;el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),2500);
+}
+
+// ==================== RENDERING ====================
+function renderAll(){renderParticipants();renderViewTabs();renderRoleTabs();renderActionBtns();renderChipTray();renderMainContent();}
+
+function renderParticipants(){
+  const bar=document.getElementById("participantsBar");
+  const names=Object.keys(participants).sort();
+  const tot=BASE_TOTAL+customActivities.length;
+  bar.innerHTML=names.map(n=>{
+    const count=Object.keys(participants[n].answers||{}).filter(k=>k.startsWith(currentRole+":")).length;
+    const isMe=n===myName;
+    return`<span class="participant-pill ${isMe?'is-me':''}"><span class="participant-dot" style="background:${participants[n].color}"></span>${n}${isMe?' (you)':''} <span style="font-size:11px;color:var(--text-hint)">${count}/${tot}</span></span>`;
+  }).join("");
+}
+
+function renderViewTabs(){
+  document.getElementById("viewTabs").innerHTML=["assign","compare","heatmap"].map(v=>
+    `<button class="tab-btn ${currentView===v?'active':''}" onclick="setView('${v}')">${v[0].toUpperCase()+v.slice(1)}</button>`
+  ).join("");
+}
+function renderRoleTabs(){
+  document.getElementById("roleTabs").innerHTML=ROLES.map(r=>
+    `<button class="tab-btn ${currentRole===r.id?'active':''}" onclick="setRole('${r.id}')" title="${r.full}">${r.label}</button>`
+  ).join("");
+}
+function renderActionBtns(){
+  const el=document.getElementById("actionBtns");
+  if(currentView==="assign") el.innerHTML=`<button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear</button> <button class="btn btn-accent btn-sm" onclick="checkAnswers()">Check answers</button>`;
+  else if(currentView==="compare") el.innerHTML=`<button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>`;
+  else el.innerHTML="";
+}
+function renderChipTray(){
+  const el=document.getElementById("chipTray");
+  if(currentView!=="assign"){el.innerHTML="";return;}
+  el.innerHTML=`<div class="chip-tray"><span class="chip-tray-label">Drag →</span>
+    <div class="raci-chip chip-R" draggable="true" data-value="R">R</div>
+    <div class="raci-chip chip-A" draggable="true" data-value="A">A</div>
+    <div class="raci-chip chip-C" draggable="true" data-value="C">C</div>
+    <div class="raci-chip chip-I" draggable="true" data-value="I">I</div>
+    <span style="font-size:12px;color:var(--text-hint);margin-left:8px">or click cell to cycle</span></div>`;
+  el.querySelectorAll(".raci-chip").forEach(chip=>{
+    chip.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",chip.dataset.value);e.dataTransfer.effectAllowed="copy";chip.classList.add("dragging")});
+    chip.addEventListener("dragend",()=>chip.classList.remove("dragging"));
+  });
+}
+function renderMainContent(){
+  const el=document.getElementById("mainContent");
+  if(currentView==="assign")renderAssignView(el);
+  else if(currentView==="compare")renderCompareView(el);
+  else renderHeatmapView(el);
+}
+
+// ==================== ASSIGN VIEW ====================
+function renderAssignView(container){
+  const my=myAnswers();
+  let html="";
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    html+=`<div class="domain-group"><div class="domain-header" style="color:${d.color}"><span>${d.name}</span><span style="font-size:11px;color:var(--text-hint);font-weight:400">${rows.length} activities</span></div>`;
+    rows.forEach(row=>{
+      const key=currentRole+":"+row.id;
+      const val=my[key]||"";
+      const correct=row.ans?row.ans[currentRole]:null;
+      let cls="";
+      if(showingResults&&!row.custom){
+        if(!val)cls="result-incorrect";
+        else if(norm(val)===norm(correct))cls="result-correct";
+        else if(isPartial(val,correct))cls="result-partial";
+        else cls="result-incorrect";
+      }
+      html+=`<div class="activity-row ${cls} ${row.custom?'is-custom':''}" data-key="${key}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
+      html+=`<div class="activity-label">${row.a}`;
+      if(row.custom) html+=`<span class="custom-badge">added by ${row.addedBy}</span>`;
+      html+=`</div>`;
+      html+=`<div class="drop-zone ${val?'filled':''}" onclick="cycleValue('${key}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
+      if(val){html+=`<div class="placed-chip ${chipCls(val)}">${val}</div><div class="remove-x" onclick="event.stopPropagation();removeValue('${key}')">✕</div>`;}
+      if(showingResults&&!row.custom&&cls!=="result-correct") html+=`<span class="answer-hint">${correct}</span>`;
+      html+=`</div></div>`;
+    });
+    html+=`<div class="add-activity-row"><input class="add-activity-input" type="text" placeholder="+ Add an activity to ${d.name.toLowerCase()}..." id="addInput-${d.id}" onkeydown="if(event.key==='Enter')addActivity('${d.id}')"><button class="add-btn" onclick="addActivity('${d.id}')">Add</button></div></div>`;
+  });
+  container.innerHTML=html;
+}
+
+// ==================== COMPARE VIEW ====================
+function renderCompareView(container){
+  const names=Object.keys(participants).sort();
+  if(names.length<1){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants...</p>`;return;}
+  let html=`<div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Activity</th><th>Ref</th>`;
+  names.forEach(n=>html+=`<th><div style="font-size:11px;line-height:1.3;max-width:80px"><span class="participant-dot" style="background:${participants[n].color};display:inline-block;margin-right:3px"></span>${n}${n===myName?' (you)':''}</div></th>`);
+  html+=`<th>Agree</th></tr></thead><tbody>`;
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    html+=`<tr class="domain-row"><td colspan="${names.length+3}" style="color:${d.color}">${d.name}</td></tr>`;
+    rows.forEach(row=>{
+      const correct=row.ans?row.ans[currentRole]:null;
+      const label=row.custom?`${row.a} <span class="custom-badge">custom</span>`:row.a;
+      html+=`<tr><td>${label}</td><td>${correct?`<span class="cell-mini ${chipCls(correct)}">${correct}</span>`:'—'}</td>`;
+      let mc=0;
+      names.forEach(n=>{
+        const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";
+        const match=correct&&v&&norm(v)===norm(correct);
+        if(match)mc++;
+        const partial=correct&&v&&isPartial(v,correct)&&!match;
+        html+=`<td><span class="cell-mini ${chipCls(v||'—')} ${match?'cell-match':v?(partial?'':'cell-mismatch'):''}">${v||'—'}</span></td>`;
+      });
+      let pct;
+      if(correct){pct=names.length>0?Math.round(mc/names.length*100):0;}
+      else{const vals=names.map(n=>(participants[n].answers||{})[currentRole+":"+row.id]||"").filter(Boolean);if(!vals.length)pct=0;else{const f={};vals.forEach(v=>{const k=norm(v);f[k]=(f[k]||0)+1});pct=Math.round(Math.max(...Object.values(f))/names.length*100);}}
+      html+=`<td><span class="consensus-badge ${pct===100?'consensus-full':pct>=50?'consensus-partial':'consensus-none'}">${pct}%</span></td></tr>`;
+    });
+  });
+  html+=`</tbody></table></div>`;
+  container.innerHTML=html;
+}
+
+// ==================== HEATMAP VIEW ====================
+function renderHeatmapView(container){
+  const names=Object.keys(participants).sort();
+  if(!names.length){container.innerHTML="";return;}
+  let html=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Green = matches reference, yellow = partial, red = mismatch, gray = unanswered, blue = custom (no ref).</p>`;
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    html+=`<div style="margin-bottom:20px"><div class="domain-header" style="color:${d.color}">${d.name}</div>`;
+    html+=`<div style="display:grid;grid-template-columns:minmax(120px,200px) repeat(${names.length},1fr);gap:2px;align-items:center;margin-bottom:4px"><div></div>`;
+    names.forEach(n=>html+=`<div style="font-size:10px;color:var(--text-hint);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n===myName?'You':n}</div>`);
+    html+=`</div>`;
+    rows.forEach(row=>{
+      const correct=row.ans?row.ans[currentRole]:null;
+      html+=`<div style="display:grid;grid-template-columns:minmax(120px,200px) repeat(${names.length},1fr);gap:2px;align-items:center;margin-bottom:2px">`;
+      html+=`<div class="heatmap-label" title="${row.a}">${row.a}${row.custom?' *':''}</div>`;
+      names.forEach(n=>{
+        const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";
+        let bg,fg;
+        if(!v){bg="var(--surface-alt)";fg="var(--text-hint)";}
+        else if(!correct){bg="var(--accent-light)";fg="var(--accent)";}
+        else if(norm(v)===norm(correct)){bg="var(--correct-bg)";fg="var(--a-text)";}
+        else if(isPartial(v,correct)){bg="var(--partial-bg)";fg="#854F0B";}
+        else{bg="var(--incorrect-bg)";fg="#A32D2D";}
+        html+=`<div class="heatmap-cell" style="background:${bg};color:${fg}" title="${n}: ${v||'—'}${correct?' (ref: '+correct+')':' (custom)'}">${v||'—'}</div>`;
+      });
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  });
+  // Summary cards
+  html+=`<div style="margin-top:24px"><div class="domain-header" style="color:var(--text)">Accuracy — ${ROLES.find(r=>r.id===currentRole).full}</div>`;
+  html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">`;
+  names.forEach(n=>{
+    let correct=0,answered=0;
+    BASE_DOMAINS.forEach(d=>{d.rows.forEach(row=>{
+      const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";
+      if(v)answered++;
+      if(v&&norm(v)===norm(row.ans[currentRole]))correct++;
+    })});
+    const pct=answered>0?Math.round(correct/BASE_TOTAL*100):0;
+    const barColor=pct>=80?"var(--a-text)":pct>=50?"#BA7517":"#E24B4A";
+    html+=`<div style="background:var(--surface);border:.5px solid var(--border-light);border-radius:var(--radius-lg);padding:14px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span class="participant-dot" style="background:${participants[n].color}"></span><span style="font-size:13px;font-weight:500">${n}${n===myName?' (you)':''}</span></div>
+      <div style="font-family:var(--mono);font-size:22px;font-weight:600;margin-bottom:4px">${pct}%</div>
+      <div style="height:4px;border-radius:2px;background:var(--border-light);overflow:hidden"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px"></div></div>
+      <div style="font-size:11px;color:var(--text-hint);margin-top:4px">${correct}/${BASE_TOTAL} correct · ${answered} answered</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+  container.innerHTML=html;
+}
+
+// ==================== ACTIONS ====================
+function setView(v){currentView=v;showingResults=false;document.getElementById("scoreBar").classList.add("hidden");renderAll();}
+function setRole(r){currentRole=r;showingResults=false;document.getElementById("scoreBar").classList.add("hidden");renderAll();}
+
+const CYCLE=["R","A","A,R","C","I",""];
+function cycleValue(key){
+  if(showingResults)return;
+  const cur=myAnswers()[key]||"";
+  const idx=CYCLE.indexOf(cur);
+  const next=CYCLE[(idx+1)%CYCLE.length];
+  send({type:"answer",key,value:next||null});
+}
+function removeValue(key){
+  showingResults=false;document.getElementById("scoreBar").classList.add("hidden");
+  send({type:"answer",key,value:null});
+}
+function clearMyRole(){
+  showingResults=false;document.getElementById("scoreBar").classList.add("hidden");
+  send({type:"clear_role",roleId:currentRole});
+}
+function addActivity(domainId){
+  const input=document.getElementById("addInput-"+domainId);
+  const val=input.value.trim();if(!val)return;
+  send({type:"add_activity",id:"c"+Date.now(),domainId,activity:val});
+  input.value="";
+}
+
+function onDragOver(e){e.preventDefault();e.dataTransfer.dropEffect="copy";const r=e.target.closest(".activity-row"),d=e.target.closest(".drop-zone");if(d)d.classList.add("drag-over");if(r)r.classList.add("drag-over");}
+function onDragLeave(e){const r=e.target.closest(".activity-row"),d=e.target.closest(".drop-zone");if(d&&!d.contains(e.relatedTarget))d.classList.remove("drag-over");if(r&&!r.contains(e.relatedTarget))r.classList.remove("drag-over");}
+function onDrop(e,key){
+  e.preventDefault();if(showingResults)return;
+  document.querySelectorAll(".drag-over").forEach(x=>x.classList.remove("drag-over"));
+  const val=e.dataTransfer.getData("text/plain");if(!val)return;
+  const existing=myAnswers()[key]||"";
+  if(existing&&existing.includes(val))return;
+  let newVal;
+  if(existing&&!existing.includes(val)){
+    const combo=[existing,val].sort().join(",");
+    newVal=(combo==="A,R"||combo==="R,A")?"A,R":val;
+  }else{newVal=val;}
+  send({type:"answer",key,value:newVal});
+}
+
+function checkAnswers(){
+  showingResults=true;
+  let correct=0,partial=0;
+  const my=myAnswers();
+  BASE_DOMAINS.forEach(d=>{d.rows.forEach(row=>{
+    const v=my[currentRole+":"+row.id]||"";
+    const c=row.ans[currentRole];
+    if(norm(v)===norm(c))correct++;
+    else if(v&&isPartial(v,c))partial++;
+  })});
+  const pct=Math.round(correct/BASE_TOTAL*100);
+  document.getElementById("scoreBar").classList.remove("hidden");
+  document.getElementById("scoreText").textContent=pct+"%";
+  document.getElementById("scoreFill").style.width=pct+"%";
+  document.getElementById("scoreFill").style.background=pct>=80?"#1D9E75":pct>=50?"#BA7517":"#E24B4A";
+  document.getElementById("scoreDetail").innerHTML=`<strong>${correct}</strong> correct, <strong>${partial}</strong> partial, <strong>${BASE_TOTAL-correct-partial}</strong> wrong`;
+  renderMainContent();
+}
+
+function exportCSV(){
+  const names=Object.keys(participants).sort();
+  let csv="Domain,Activity,Type,Reference";names.forEach(n=>csv+=","+n);csv+=",Consensus%\n";
+  BASE_DOMAINS.forEach(d=>{allRows(d.id).forEach(row=>{
+    const c=row.ans?row.ans[currentRole]:"";
+    csv+=`"${d.name}","${row.a}","${row.custom?'Custom':'Base'}","${c}"`;
+    let mc=0;names.forEach(n=>{const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";if(c&&v&&norm(v)===norm(c))mc++;csv+=`,"${v}"`;});
+    csv+=`,${c&&names.length?Math.round(mc/names.length*100):0}%\n`;
+  })});
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`raci-${roomId}-${currentRole}.csv`;a.click();
+}
+
+// ==================== HELPERS ====================
+function norm(v){return v.split(",").map(x=>x.trim()).sort().join(",");}
+function isPartial(u,c){const up=u.split(",").map(x=>x.trim()),cp=c.split(",").map(x=>x.trim());return up.some(x=>cp.includes(x));}
+function chipCls(v){if(v.includes("R")&&v.includes("A"))return"chip-R";if(v.includes("A"))return"chip-A";if(v.includes("R"))return"chip-R";if(v.includes("C"))return"chip-C";if(v==="—")return"";return"chip-I";}
+
+// ==================== INIT ====================
+renderLobby();
+</script>
+</body>
+</html>

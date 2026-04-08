@@ -1,0 +1,5 @@
+node_modules/
+.partykit/
+*.zip
+.env
+.env.local
