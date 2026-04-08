@@ -179,6 +179,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
   .activity-label{font-size:12px}
   .raci-chip,.drop-zone{width:36px;height:30px}
 }
+
+/* Matrix view */
+.matrix-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:20px}
+.matrix-table{width:100%;border-collapse:collapse;font-size:12px}
+.matrix-table th{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-hint);padding:8px;text-align:center;position:sticky;top:0;background:var(--bg);z-index:2;border-bottom:1px solid var(--border)}
+.matrix-table th:first-child{text-align:left;min-width:200px;padding-left:0}
+.matrix-table td{padding:5px 8px;text-align:center;border-bottom:.5px solid var(--border-light)}
+.matrix-table td:first-child{text-align:left;font-size:12px;color:var(--text);padding-left:0;padding-right:12px}
+.matrix-table .domain-row td{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:14px 8px 4px;color:var(--text-muted);border-bottom:none}
+.matrix-cell{display:inline-flex;flex-direction:column;align-items:center;gap:2px}
+.matrix-pct{font-size:9px;font-weight:600;padding:1px 4px;border-radius:3px}
+
+/* Cards view */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.role-resp-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-lg);overflow:hidden}
+.role-resp-header{padding:14px 16px;border-bottom:1px solid var(--border-light);background:var(--surface-alt)}
+.role-resp-abbr{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)}
+.role-resp-full{font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.35}
+.resp-section{padding:10px 16px;border-bottom:.5px solid var(--border-light)}
+.resp-section:last-child{border-bottom:none}
+.resp-section-label{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.resp-activity{font-size:12px;color:var(--text);padding:2px 0;line-height:1.4}
+.resp-activity.is-custom{color:var(--text-muted);font-style:italic}
+.resp-empty{font-size:11px;color:var(--text-hint);font-style:italic}
 </style>
 </head>
 <body>
@@ -202,12 +226,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
     </div>
 
     <div class="landing-section">
-      <h2>RACI values</h2>
-      <div class="raci-legend">
-        <div class="raci-def"><span class="key-badge chip-R">R</span> Responsible — does the work</div>
-        <div class="raci-def"><span class="key-badge chip-A">A</span> Accountable — owns the outcome</div>
-        <div class="raci-def"><span class="key-badge chip-C">C</span> Consulted — input before decisions</div>
-        <div class="raci-def"><span class="key-badge chip-I">I</span> Informed — kept in the loop</div>
+      <h2>What does RACI mean?</h2>
+      <div class="steps">
+        <div class="step"><div class="step-num"><span class="key-badge chip-R" style="width:auto;padding:0 8px">R</span></div><h3>Responsible</h3><p>The person (or people) who <strong>do the work</strong>. Every task must have at least one R. Multiple Rs mean shared execution — but too many can cause confusion about who leads.</p></div>
+        <div class="step"><div class="step-num"><span class="key-badge chip-A" style="width:auto;padding:0 8px">A</span></div><h3>Accountable</h3><p>The single person who is <strong>ultimately answerable</strong> for the outcome. They approve the work and are on the hook if it doesn't happen. There must be exactly one A per activity.</p></div>
+        <div class="step"><div class="step-num"><span class="key-badge chip-C" style="width:auto;padding:0 8px">C</span></div><h3>Consulted</h3><p>People whose <strong>input is sought before decisions are made</strong>. This is a two-way conversation — their feedback must be considered. Overusing C slows things down; be selective.</p></div>
+        <div class="step"><div class="step-num"><span class="key-badge chip-I" style="width:auto;padding:0 8px">I</span></div><h3>Informed</h3><p>People who are <strong>kept up to date</strong> on progress or decisions, but not involved in making them. One-way communication only. Use I when someone needs visibility but not a voice.</p></div>
       </div>
     </div>
 
@@ -519,12 +543,15 @@ function renderParticipants(){
 }
 
 function renderViewTabs(){
-  document.getElementById("viewTabs").innerHTML=["assign","compare","heatmap"].map(v=>
-    `<button class="tab-btn ${currentView===v?'active':''}" onclick="setView('${v}')">${v[0].toUpperCase()+v.slice(1)}</button>`
+  const VIEWS=[["assign","Assign"],["compare","Compare"],["heatmap","Heatmap"],["matrix","Matrix"],["cards","Cards"]];
+  document.getElementById("viewTabs").innerHTML=VIEWS.map(([v,label])=>
+    `<button class="tab-btn ${currentView===v?'active':''}" onclick="setView('${v}')">${label}</button>`
   ).join("");
 }
 function renderRoleTabs(){
-  document.getElementById("roleTabs").innerHTML=ROLES.map(r=>
+  const el=document.getElementById("roleTabs");
+  if(currentView==="matrix"||currentView==="cards"){el.innerHTML="";return;}
+  el.innerHTML=ROLES.map(r=>
     `<button class="tab-btn ${currentRole===r.id?'active':''}" onclick="setRole('${r.id}')" title="${r.full}">${r.label}</button>`
   ).join("");
 }
@@ -532,6 +559,7 @@ function renderActionBtns(){
   const el=document.getElementById("actionBtns");
   if(currentView==="assign") el.innerHTML=`<button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear</button> <button class="btn btn-accent btn-sm" onclick="checkAnswers()">Check answers</button>`;
   else if(currentView==="compare") el.innerHTML=`<button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>`;
+  else if(currentView==="matrix") el.innerHTML=`<button class="btn btn-sm" onclick="exportAgreedCSV()">Export CSV</button>`;
   else el.innerHTML="";
 }
 function renderChipTray(){
@@ -552,6 +580,8 @@ function renderMainContent(){
   const el=document.getElementById("mainContent");
   if(currentView==="assign")renderAssignView(el);
   else if(currentView==="compare")renderCompareView(el);
+  else if(currentView==="matrix")renderMatrixView(el);
+  else if(currentView==="cards")renderCardsView(el);
   else renderHeatmapView(el);
 }
 
@@ -749,6 +779,93 @@ function exportCSV(){
 function norm(v){return v.split(",").map(x=>x.trim()).sort().join(",");}
 function isPartial(u,c){const up=u.split(",").map(x=>x.trim()),cp=c.split(",").map(x=>x.trim());return up.some(x=>cp.includes(x));}
 function chipCls(v){if(v.includes("R")&&v.includes("A"))return"chip-R";if(v.includes("A"))return"chip-A";if(v.includes("R"))return"chip-R";if(v.includes("C"))return"chip-C";if(v==="—")return"";return"chip-I";}
+
+function consensusAnswer(roleId,rowId){
+  const names=Object.keys(participants);
+  if(!names.length)return{value:"",pct:0};
+  const freq={};
+  names.forEach(n=>{const v=norm((participants[n].answers||{})[roleId+":"+rowId]||"");if(v)freq[v]=(freq[v]||0)+1;});
+  if(!Object.keys(freq).length)return{value:"",pct:0};
+  const[val,cnt]=Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+  return{value:val,pct:Math.round(cnt/names.length*100)};
+}
+
+// ==================== MATRIX VIEW ====================
+function renderMatrixView(container){
+  const names=Object.keys(participants);
+  if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
+  let html=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Showing consensus answer per role. Percentage reflects agreement across all participants.</p>`;
+  html+=`<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th>Activity</th>`;
+  ROLES.forEach(r=>html+=`<th title="${r.full}">${r.label}</th>`);
+  html+=`</tr></thead><tbody>`;
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    html+=`<tr class="domain-row"><td colspan="${ROLES.length+1}" style="color:${d.color}">${d.name}</td></tr>`;
+    rows.forEach(row=>{
+      const label=row.custom?`${row.a} <span class="custom-badge">custom</span>`:row.a;
+      html+=`<tr><td>${label}</td>`;
+      ROLES.forEach(r=>{
+        const{value,pct}=consensusAnswer(r.id,row.id);
+        if(!value){html+=`<td><span style="color:var(--text-hint)">—</span></td>`;return;}
+        const cls=chipCls(value);
+        const pctCls=pct===100?"consensus-full":pct>=50?"consensus-partial":"consensus-none";
+        html+=`<td><div class="matrix-cell"><span class="cell-mini ${cls}">${value}</span>`;
+        if(pct<100)html+=`<span class="matrix-pct ${pctCls}">${pct}%</span>`;
+        html+=`</div></td>`;
+      });
+      html+=`</tr>`;
+    });
+  });
+  html+=`</tbody></table></div>`;
+  container.innerHTML=html;
+}
+
+// ==================== CARDS VIEW ====================
+function renderCardsView(container){
+  const names=Object.keys(participants);
+  if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
+  const RACI_TYPES=[
+    {val:"R",label:"Responsible",cls:"chip-R"},
+    {val:"A",label:"Accountable",cls:"chip-A"},
+    {val:"C",label:"Consulted",cls:"chip-C"},
+    {val:"I",label:"Informed",cls:"chip-I"},
+  ];
+  let html=`<div class="cards-grid">`;
+  ROLES.forEach(role=>{
+    html+=`<div class="role-resp-card"><div class="role-resp-header"><div class="role-resp-abbr">${role.label}</div><div class="role-resp-full">${role.full}</div></div>`;
+    RACI_TYPES.forEach(type=>{
+      const activities=[];
+      BASE_DOMAINS.forEach(d=>{
+        allRows(d.id).forEach(row=>{
+          const{value}=consensusAnswer(role.id,row.id);
+          if(value&&value.split(",").map(x=>x.trim()).includes(type.val))
+            activities.push({name:row.a,custom:!!row.custom});
+        });
+      });
+      html+=`<div class="resp-section"><div class="resp-section-label"><span class="key-badge ${type.cls}">${type.val}</span>${type.label}</div>`;
+      if(activities.length)activities.forEach(a=>html+=`<div class="resp-activity${a.custom?' is-custom':''}">${a.name}</div>`);
+      else html+=`<div class="resp-empty">None assigned</div>`;
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+  container.innerHTML=html;
+}
+
+function exportAgreedCSV(){
+  let csv="Domain,Activity,Type,"+ROLES.map(r=>r.label).join(",")+"\n";
+  BASE_DOMAINS.forEach(d=>{
+    allRows(d.id).forEach(row=>{
+      const vals=ROLES.map(r=>consensusAnswer(r.id,row.id).value||"");
+      csv+=`"${d.name}","${row.a}","${row.custom?'Custom':'Base'}",${vals.map(v=>`"${v}"`).join(",")}\n`;
+    });
+  });
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=`raci-matrix-${roomId}.csv`;
+  a.click();
+}
 
 // ==================== INIT ====================
 function showLobby(){
