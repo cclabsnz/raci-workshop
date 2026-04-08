@@ -92,12 +92,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .chip-I{background:var(--i-bg);color:var(--i-text);border-color:var(--i-border)}
 
 /* Score */
-.score-bar{display:flex;align-items:center;gap:16px;padding:12px 18px;background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);margin-bottom:20px}
-.score-bar.hidden{display:none}
-.score-item{font-size:13px;color:var(--text-muted)}
-.score-item strong{font-weight:600;color:var(--text);font-family:var(--mono);font-size:15px}
-.score-fill{height:6px;border-radius:3px;background:var(--border-light);flex:1;overflow:hidden}
-.score-fill-inner{height:100%;border-radius:3px;transition:width .4s ease}
 
 /* Activities */
 .domain-group{margin-bottom:24px}
@@ -105,9 +99,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .activity-row{display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:4px;background:var(--surface);border:.5px solid var(--border-light);border-radius:var(--radius);transition:border-color .15s,background .15s}
 .activity-row:hover{border-color:var(--border)}
 .activity-row.drag-over{border-color:var(--accent);background:var(--accent-light)}
-.activity-row.result-correct{border-color:var(--correct-border);background:var(--correct-bg)}
-.activity-row.result-incorrect{border-color:var(--incorrect-border);background:var(--incorrect-bg)}
-.activity-row.result-partial{border-color:var(--partial-border);background:var(--partial-bg)}
 .activity-row.is-custom{border-left:3px solid var(--accent)}
 .activity-label{flex:1;font-size:13px;line-height:1.4}
 .custom-badge{font-size:10px;font-weight:500;padding:1px 6px;border-radius:6px;background:var(--accent-light);color:var(--accent);margin-left:6px;white-space:nowrap}
@@ -118,8 +109,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .drop-zone .placed-chip{font-family:var(--mono);font-size:14px;font-weight:600;width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:6px}
 .drop-zone .remove-x{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--text-muted);color:white;font-size:10px;display:none;align-items:center;justify-content:center;cursor:pointer;line-height:1}
 .drop-zone:hover .remove-x{display:flex}
-.answer-hint{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text-hint);opacity:0;transition:opacity .2s;position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);white-space:nowrap}
-.activity-row.result-incorrect .answer-hint,.activity-row.result-partial .answer-hint{opacity:1}
 .add-activity-row{display:flex;gap:8px;margin-top:6px;align-items:center}
 .add-activity-input{flex:1;font-family:var(--font);font-size:13px;padding:7px 12px;border:1.5px dashed var(--border);border-radius:var(--radius);outline:none;background:transparent;color:var(--text);transition:border-color .15s}
 .add-activity-input:focus{border-color:var(--accent);border-style:solid}
@@ -291,11 +280,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
     <div id="actionBtns"></div>
   </div>
   <div id="chipTray"></div>
-  <div class="score-bar hidden" id="scoreBar">
-    <div class="score-item">Score: <strong id="scoreText">0%</strong></div>
-    <div class="score-fill"><div class="score-fill-inner" id="scoreFill" style="width:0"></div></div>
-    <div class="score-item" id="scoreDetail"></div>
-  </div>
   <div id="mainContent"></div>
 </div>
 <div class="toast" id="toast"></div>
@@ -382,7 +366,6 @@ let ws=null;
 let creatorName="";
 let currentView="assign";
 let currentRole="ssa";
-let showingResults=false;
 let participants={};
 let customActivities=[];
 
@@ -534,11 +517,20 @@ function renderParticipants(){
   if(btn)btn.style.display=(myName&&creatorName&&myName===creatorName)?"":"none";
   const bar=document.getElementById("participantsBar");
   const names=Object.keys(participants).sort();
-  const tot=BASE_TOTAL+customActivities.length;
+  const activitiesTotal=BASE_TOTAL+customActivities.length;
+  const totalPossible=ROLES.length*activitiesTotal;
   bar.innerHTML=names.map(n=>{
-    const count=Object.keys(participants[n].answers||{}).filter(k=>k.startsWith(currentRole+":")).length;
+    const answered=Object.keys(participants[n].answers||{}).length;
+    const pct=totalPossible>0?Math.round(answered/totalPossible*100):0;
     const isMe=n===myName;
-    return`<span class="participant-pill ${isMe?'is-me':''}"><span class="participant-dot" style="background:${participants[n].color}"></span>${n}${isMe?' (you)':''} <span style="font-size:11px;color:var(--text-hint)">${count}/${tot}</span></span>`;
+    return`<span class="participant-pill ${isMe?'is-me':''}">
+      <span class="participant-dot" style="background:${participants[n].color}"></span>
+      ${n}${isMe?' (you)':''}
+      <span style="display:inline-flex;align-items:center;gap:4px;margin-left:4px">
+        <span style="width:36px;height:4px;border-radius:2px;background:var(--border-light);overflow:hidden;display:inline-block;vertical-align:middle"><span style="display:block;height:100%;width:${pct}%;background:${participants[n].color};border-radius:2px"></span></span>
+        <span style="font-size:10px;color:var(--text-hint);font-family:var(--mono)">${answered}/${totalPossible}</span>
+      </span>
+    </span>`;
   }).join("");
 }
 
@@ -557,7 +549,7 @@ function renderRoleTabs(){
 }
 function renderActionBtns(){
   const el=document.getElementById("actionBtns");
-  if(currentView==="assign") el.innerHTML=`<button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear</button> <button class="btn btn-accent btn-sm" onclick="checkAnswers()">Check answers</button>`;
+  if(currentView==="assign") el.innerHTML=`<button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear my answers</button>`;
   else if(currentView==="compare") el.innerHTML=`<button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>`;
   else if(currentView==="matrix") el.innerHTML=`<button class="btn btn-sm" onclick="exportAgreedCSV()">Export CSV</button>`;
   else el.innerHTML="";
@@ -595,21 +587,12 @@ function renderAssignView(container){
     rows.forEach(row=>{
       const key=currentRole+":"+row.id;
       const val=my[key]||"";
-      const correct=row.ans?row.ans[currentRole]:null;
-      let cls="";
-      if(showingResults&&!row.custom){
-        if(!val)cls="result-incorrect";
-        else if(norm(val)===norm(correct))cls="result-correct";
-        else if(isPartial(val,correct))cls="result-partial";
-        else cls="result-incorrect";
-      }
-      html+=`<div class="activity-row ${cls} ${row.custom?'is-custom':''}" data-key="${key}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
+      html+=`<div class="activity-row ${row.custom?'is-custom':''}" data-key="${key}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
       html+=`<div class="activity-label">${row.a}`;
       if(row.custom) html+=`<span class="custom-badge">added by ${row.addedBy}</span>`;
       html+=`</div>`;
       html+=`<div class="drop-zone ${val?'filled':''}" onclick="cycleValue('${key}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
       if(val){html+=`<div class="placed-chip ${chipCls(val)}">${val}</div><div class="remove-x" onclick="event.stopPropagation();removeValue('${key}')">✕</div>`;}
-      if(showingResults&&!row.custom&&cls!=="result-correct") html+=`<span class="answer-hint">${correct}</span>`;
       html+=`</div></div>`;
     });
     html+=`<div class="add-activity-row"><input class="add-activity-input" type="text" placeholder="+ Add an activity to ${d.name.toLowerCase()}..." id="addInput-${d.id}" onkeydown="if(event.key==='Enter')addActivity('${d.id}')"><button class="add-btn" onclick="addActivity('${d.id}')">Add</button></div></div>`;
@@ -702,25 +685,18 @@ function renderHeatmapView(container){
 }
 
 // ==================== ACTIONS ====================
-function setView(v){currentView=v;showingResults=false;document.getElementById("scoreBar").classList.add("hidden");renderAll();}
-function setRole(r){currentRole=r;showingResults=false;document.getElementById("scoreBar").classList.add("hidden");renderAll();}
+function setView(v){currentView=v;renderAll();}
+function setRole(r){currentRole=r;renderAll();}
 
 const CYCLE=["R","A","A,R","C","I",""];
 function cycleValue(key){
-  if(showingResults)return;
   const cur=myAnswers()[key]||"";
   const idx=CYCLE.indexOf(cur);
   const next=CYCLE[(idx+1)%CYCLE.length];
   send({type:"answer",key,value:next||null});
 }
-function removeValue(key){
-  showingResults=false;document.getElementById("scoreBar").classList.add("hidden");
-  send({type:"answer",key,value:null});
-}
-function clearMyRole(){
-  showingResults=false;document.getElementById("scoreBar").classList.add("hidden");
-  send({type:"clear_role",roleId:currentRole});
-}
+function removeValue(key){ send({type:"answer",key,value:null}); }
+function clearMyRole(){ send({type:"clear_role",roleId:currentRole}); }
 function addActivity(domainId){
   const input=document.getElementById("addInput-"+domainId);
   const val=input.value.trim();if(!val)return;
@@ -731,7 +707,7 @@ function addActivity(domainId){
 function onDragOver(e){e.preventDefault();e.dataTransfer.dropEffect="copy";const r=e.target.closest(".activity-row"),d=e.target.closest(".drop-zone");if(d)d.classList.add("drag-over");if(r)r.classList.add("drag-over");}
 function onDragLeave(e){const r=e.target.closest(".activity-row"),d=e.target.closest(".drop-zone");if(d&&!d.contains(e.relatedTarget))d.classList.remove("drag-over");if(r&&!r.contains(e.relatedTarget))r.classList.remove("drag-over");}
 function onDrop(e,key){
-  e.preventDefault();if(showingResults)return;
+  e.preventDefault();
   document.querySelectorAll(".drag-over").forEach(x=>x.classList.remove("drag-over"));
   const val=e.dataTransfer.getData("text/plain");if(!val)return;
   const existing=myAnswers()[key]||"";
@@ -744,24 +720,6 @@ function onDrop(e,key){
   send({type:"answer",key,value:newVal});
 }
 
-function checkAnswers(){
-  showingResults=true;
-  let correct=0,partial=0;
-  const my=myAnswers();
-  BASE_DOMAINS.forEach(d=>{d.rows.forEach(row=>{
-    const v=my[currentRole+":"+row.id]||"";
-    const c=row.ans[currentRole];
-    if(norm(v)===norm(c))correct++;
-    else if(v&&isPartial(v,c))partial++;
-  })});
-  const pct=Math.round(correct/BASE_TOTAL*100);
-  document.getElementById("scoreBar").classList.remove("hidden");
-  document.getElementById("scoreText").textContent=pct+"%";
-  document.getElementById("scoreFill").style.width=pct+"%";
-  document.getElementById("scoreFill").style.background=pct>=80?"#1D9E75":pct>=50?"#BA7517":"#E24B4A";
-  document.getElementById("scoreDetail").innerHTML=`<strong>${correct}</strong> correct, <strong>${partial}</strong> partial, <strong>${BASE_TOTAL-correct-partial}</strong> wrong`;
-  renderMainContent();
-}
 
 function exportCSV(){
   const names=Object.keys(participants).sort();
