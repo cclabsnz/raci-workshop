@@ -108,6 +108,16 @@ export default class RACIServer implements Party.Server {
         break;
       }
 
+      case "bulk_answers": {
+        const p = this.findParticipant(sender.id);
+        if (!p) return;
+        if (msg.answers && typeof msg.answers === "object") {
+          p.answers = msg.answers;
+          this.broadcast();
+        }
+        break;
+      }
+
       case "remove_activity": {
         this.state.customActivities = this.state.customActivities.filter(
           (a) => a.id !== msg.id
