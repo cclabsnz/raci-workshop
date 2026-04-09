@@ -266,8 +266,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
   </div>
 </div>
 
-<div class="modal-overlay" id="lobbyModal" style="display:none">
-<div class="modal" id="lobbyContent"></div>
+<div class="modal-overlay" id="lobbyModal" style="display:none" onclick="if(event.target===this)closeLobby()">
+<div class="modal" style="position:relative" id="lobbyContent">
+  <button onclick="closeLobby()" title="Close" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:20px;line-height:1;padding:2px" onmouseover="this.style.color=getComputedStyle(document.documentElement).getPropertyValue('--text')" onmouseout="this.style.color=getComputedStyle(document.documentElement).getPropertyValue('--text-hint')">✕</button>
+</div>
 </div>
 
 <div class="app" style="display:none" id="mainApp">
@@ -1015,6 +1017,10 @@ window.addEventListener("beforeunload",e=>{
 function showLobby(){
   document.getElementById("lobbyModal").style.display="flex";
   renderLobby();
+}
+function closeLobby(){
+  document.getElementById("lobbyModal").style.display="none";
+  document.getElementById("landingPage").style.display="";
 }
 
 // If joining via ?room= link, skip landing and show join modal directly
