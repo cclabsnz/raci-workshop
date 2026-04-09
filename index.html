@@ -195,6 +195,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .matrix-table .domain-row td{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:14px 8px 4px;color:var(--text-muted);border-bottom:none}
 .matrix-cell{display:inline-flex;flex-direction:column;align-items:center;gap:2px}
 .matrix-pct{font-size:9px;font-weight:600;padding:1px 4px;border-radius:3px}
+.cov-cell{display:inline-flex;gap:2px}
+.cov-badge{font-family:var(--mono);font-size:9px;font-weight:700;width:16px;height:15px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center}
+.cov-ok{background:var(--correct-bg);color:var(--a-text)}
+.cov-miss{background:var(--incorrect-bg);color:#A32D2D}
+.cov-na{background:var(--surface-alt);color:var(--text-hint)}
+.matrix-row-gap{background:rgba(220,60,60,0.04)}
+.coverage-banner{background:var(--incorrect-bg);border:1px solid var(--incorrect-border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:#A32D2D;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.coverage-banner strong{font-weight:600}
 
 /* Cards view */
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
@@ -864,6 +872,16 @@ function norm(v){return v.split(",").map(x=>x.trim()).sort().join(",");}
 function isPartial(u,c){const up=u.split(",").map(x=>x.trim()),cp=c.split(",").map(x=>x.trim());return up.some(x=>cp.includes(x));}
 function chipCls(v){if(v==="NA")return"chip-NA";if(v.includes("R")&&v.includes("A"))return"chip-R";if(v.includes("A"))return"chip-A";if(v.includes("R"))return"chip-R";if(v.includes("C"))return"chip-C";if(v==="—")return"";return"chip-I";}
 
+function checkRACICoverage(rowId){
+  const cov={R:false,A:false,C:false,I:false};
+  effectiveRoles().forEach(r=>{
+    const{value}=consensusAnswer(r.id,rowId);
+    if(!value||value==="NA")return;
+    value.split(",").map(v=>v.trim()).forEach(v=>{if(cov[v]!==undefined)cov[v]=true;});
+  });
+  return cov;
+}
+
 function consensusAnswer(roleId,rowId){
   const names=Object.keys(participants);
   if(!names.length)return{value:"",pct:0};
@@ -878,16 +896,30 @@ function consensusAnswer(roleId,rowId){
 function renderMatrixView(container){
   const names=Object.keys(participants);
   if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
-  let html=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Showing consensus answer per role. Percentage reflects agreement across all participants.</p>`;
+  // Collect all rows for coverage banner count
+  let gapCount=0;
+  const allRowsList=[];
+  BASE_DOMAINS.forEach(d=>allRows(d.id).forEach(r=>allRowsList.push(r)));
+  allRowsList.forEach(row=>{
+    const cov=checkRACICoverage(row.id);
+    if(!cov.R||!cov.A||!cov.C||!cov.I)gapCount++;
+  });
+  let html="";
+  if(gapCount>0){
+    html+=`<div class="coverage-banner">⚠ ${gapCount} activit${gapCount===1?"y":"ies"} missing full RACI coverage — look for highlighted rows below.</div>`;
+  }
+  html+=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Showing consensus answer per role. Percentage reflects agreement across all participants.</p>`;
   html+=`<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th>Activity</th>`;
   effectiveRoles().forEach(r=>html+=`<th title="${r.full}">${r.label}</th>`);
-  html+=`</tr></thead><tbody>`;
+  html+=`<th>Coverage</th></tr></thead><tbody>`;
   BASE_DOMAINS.forEach(d=>{
     const rows=allRows(d.id);
-    html+=`<tr class="domain-row"><td colspan="${effectiveRoles().length+1}" style="color:${d.color}">${d.name}</td></tr>`;
+    html+=`<tr class="domain-row"><td colspan="${effectiveRoles().length+2}" style="color:${d.color}">${d.name}</td></tr>`;
     rows.forEach(row=>{
+      const cov=checkRACICoverage(row.id);
+      const hasGap=!cov.R||!cov.A||!cov.C||!cov.I;
       const label=row.custom?`${row.a} <span class="custom-badge">custom</span>`:row.a;
-      html+=`<tr><td>${label}</td>`;
+      html+=`<tr class="${hasGap?"matrix-row-gap":""}"><td>${label}</td>`;
       effectiveRoles().forEach(r=>{
         const{value,pct}=consensusAnswer(r.id,row.id);
         if(!value){html+=`<td><span style="color:var(--text-hint)">—</span></td>`;return;}
@@ -897,6 +929,13 @@ function renderMatrixView(container){
         if(pct<100)html+=`<span class="matrix-pct ${pctCls}">${pct}%</span>`;
         html+=`</div></td>`;
       });
+      // Coverage badges cell
+      html+=`<td><div class="matrix-cell" style="gap:2px">`;
+      ["R","A","C","I"].forEach(letter=>{
+        if(cov[letter])html+=`<span class="cov-badge cov-ok">${letter}</span>`;
+        else html+=`<span class="cov-badge cov-miss">${letter}</span>`;
+      });
+      html+=`</div></td>`;
       html+=`</tr>`;
     });
   });
