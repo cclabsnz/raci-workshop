@@ -379,6 +379,7 @@ let myName="";
 let roomId="";
 let ws=null;
 let creatorName="";
+let hasRestoredAnswers=false;
 let currentView="assign";
 let currentRole="ssa";
 let participants={};
@@ -399,7 +400,7 @@ function generateRoomId(){
 }
 
 function connectToRoom(room, name){
-  roomId=room; myName=name;
+  roomId=room; myName=name; hasRestoredAnswers=false;
   const protocol=location.protocol==="https:"?"wss":"ws";
   ws=new WebSocket(`${protocol}://${PARTYKIT_HOST}/party/${roomId}`);
   ws.onopen=()=>{
@@ -414,6 +415,25 @@ function connectToRoom(room, name){
       participants=msg.participants||{};
       customActivities=msg.customActivities||[];
       if(msg.creatorName)creatorName=msg.creatorName;
+      // Auto-save my answers to localStorage after every sync
+      const mine=participants[myName]?.answers;
+      if(mine&&Object.keys(mine).length>0)
+        localStorage.setItem("raci-answers-"+myName,JSON.stringify(mine));
+      // On first sync, restore from localStorage if server has fewer answers
+      if(!hasRestoredAnswers&&myName){
+        hasRestoredAnswers=true;
+        try{
+          const stored=localStorage.getItem("raci-answers-"+myName);
+          if(stored){
+            const saved=JSON.parse(stored);
+            const serverAnswers=participants[myName]?.answers||{};
+            if(Object.keys(saved).length>Object.keys(serverAnswers).length){
+              send({type:"bulk_answers",answers:{...serverAnswers,...saved}});
+              showToast("Restored your saved answers");
+            }
+          }
+        }catch(e){}
+      }
       renderAll();
     } else if(msg.type==="room_closed"){
       ws.onclose=null; // prevent reconnect
@@ -827,7 +847,9 @@ function renderCardsView(container){
 }
 
 function exportMyAnswers(){
-  const data=JSON.stringify({name:myName,answers:myAnswers()},null,2);
+  const answers=myAnswers();
+  localStorage.setItem("raci-answers-"+myName,JSON.stringify(answers));
+  const data=JSON.stringify({name:myName,answers},null,2);
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));
   a.download=`raci-answers-${myName.replace(/\s+/g,"-").toLowerCase()}.json`;
@@ -843,8 +865,15 @@ function importMyAnswers(){
       try{
         const data=JSON.parse(evt.target.result);
         if(!data.answers||typeof data.answers!=="object")throw new Error();
-        send({type:"bulk_answers",answers:data.answers});
-        showToast("Answers imported");
+        const existing=myAnswers();
+        const existingCount=Object.keys(existing).length;
+        const incoming=data.answers;
+        const overwritten=Object.keys(incoming).filter(k=>existing[k]&&existing[k]!==incoming[k]).length;
+        if(overwritten>0&&!confirm(`This will overwrite ${overwritten} answer${overwritten>1?"s":""} you've already set. Continue?`))return;
+        // Merge: imported answers overlay existing ones
+        const merged={...existing,...incoming};
+        send({type:"bulk_answers",answers:merged});
+        showToast(`Imported ${Object.keys(incoming).length} answers`);
       }catch{showToast("Import failed — invalid file");}
     };
     reader.readAsText(file);
