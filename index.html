@@ -236,13 +236,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
     </div>
 
     <div class="landing-section">
-      <h2>50 activities across 5 domains</h2>
+      <h2>63 enduring responsibilities across 5 domains</h2>
       <div class="steps">
-        <div class="step"><h3>Architecture &amp; design</h3><p>Multi-org strategy, solution design, integration patterns, data models, and more.</p></div>
-        <div class="step"><h3>Delivery governance</h3><p>Programme roadmap, vendor management, stakeholder engagement, release governance.</p></div>
-        <div class="step"><h3>Platform operations</h3><p>Org health, user management, sandboxes, incident response, support cases.</p></div>
-        <div class="step"><h3>DevOps &amp; engineering</h3><p>CI/CD pipelines, branching strategy, automated testing, code quality gates.</p></div>
-        <div class="step"><h3>Team delivery &amp; people</h3><p>Sprint planning, mentoring, code review, onboarding, best practices.</p></div>
+        <div class="step"><h3>Architecture &amp; design</h3><p>Multi-org strategy, solution design, integration patterns, data models, emerging tech evaluation, enterprise architecture alignment.</p></div>
+        <div class="step"><h3>Delivery governance &amp; programme</h3><p>Governance forums, vendor management, roadmap, stakeholder engagement, release governance, BAU handover, ways of working.</p></div>
+        <div class="step"><h3>Platform operations &amp; service management</h3><p>Platform health, user management, sandboxes, incident response, backup/DR, compliance, license management.</p></div>
+        <div class="step"><h3>DevOps &amp; release engineering</h3><p>CI/CD pipelines, branching strategy, automated testing, code quality gates, vendor onboarding, DevOps standards.</p></div>
+        <div class="step"><h3>Team delivery &amp; people</h3><p>Sprint planning, mentoring, code review, onboarding, L3 support, upskilling programmes, BAU coordination.</p></div>
       </div>
     </div>
 
@@ -299,62 +299,77 @@ const ROLES=[
 ];
 const BASE_DOMAINS=[
   {id:"arch",name:"Architecture & design",color:"#0C447C",rows:[
-    {id:"b0",a:"Multi-org architecture strategy",ans:{ssa:"A,R",pa:"C",pm:"C",dol:"I",ptl:"I"}},
-    {id:"b1",a:"Solution design for new programmes",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"C",ptl:"I"}},
-    {id:"b2",a:"Architecture decision records",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"I"}},
-    {id:"b3",a:"Integration pattern design",ans:{ssa:"A,R",pa:"I",pm:"C",dol:"C",ptl:"I"}},
-    {id:"b4",a:"Data model design and changes",ans:{ssa:"A,R",pa:"I",pm:"C",dol:"I",ptl:"C"}},
-    {id:"b5",a:"Licensing and product evaluation",ans:{ssa:"A,R",pa:"C",pm:"R",dol:"I",ptl:"I"}},
-    {id:"b6",a:"Reference architecture / patterns library",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"C",ptl:"C"}},
-    {id:"b7",a:"Technical debt assessment and roadmap",ans:{ssa:"A,R",pa:"C",pm:"C",dol:"C",ptl:"C"}},
-    {id:"b8",a:"Complex feature design (OmniStudio, Experience Cloud)",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"C"}},
-    {id:"b9",a:"Technical spikes and POC development",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b0",a:"Multi-org architecture strategy and org consolidation roadmap",ans:{ssa:"A,R",pa:"C",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b1",a:"Solution design for new products entering the Salesforce platform",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"C",ptl:"I"}},
+    {id:"b2",a:"Architecture decision records and design documentation",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"I"}},
+    {id:"b3",a:"Integration pattern design (API framework, middleware, event-driven architecture)",ans:{ssa:"A,R",pa:"I",pm:"C",dol:"C",ptl:"I"}},
+    {id:"b4",a:"Data model design and cross-org data strategy",ans:{ssa:"A,R",pa:"I",pm:"C",dol:"I",ptl:"C"}},
+    {id:"b5",a:"Design patterns library — reusable patterns, BCP plans, tooling governance",ans:{ssa:"A,R",pa:"R",pm:"C",dol:"C",ptl:"C"}},
+    {id:"b6",a:"Technical debt management — register, prioritisation and remediation",ans:{ssa:"A,R",pa:"C",pm:"C",dol:"C",ptl:"R"}},
+    {id:"b7",a:"Enterprise architecture alignment (DA/ARG governance participation)",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"I",ptl:"I"}},
+    {id:"b8",a:"Architecture review for new products entering the platform",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b9",a:"Complex feature design (OmniStudio, Experience Cloud, Health Cloud)",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b10",a:"Technical spikes and proof-of-concept development",ans:{ssa:"A,R",pa:"I",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b11",a:"Emerging technology evaluation and POC governance (AI, Data Cloud, Contact Center)",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b12",a:"Salesforce domain governance forum (cross-vendor architecture alignment)",ans:{ssa:"A,R",pa:"C",pm:"I",dol:"I",ptl:"I"}},
   ]},
   {id:"deliv",name:"Delivery governance & programme",color:"#085041",rows:[
-    {id:"b10",a:"Org Working Group facilitation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
-    {id:"b11",a:"Governance framework and ToR",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
-    {id:"b12",a:"Vendor delivery management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"I"}},
-    {id:"b13",a:"Programme roadmap and prioritisation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
-    {id:"b14",a:"Stakeholder engagement",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"I"}},
-    {id:"b15",a:"Delivery risk management and escalation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"C",ptl:"R"}},
-    {id:"b16",a:"Cross-programme dependency management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"C"}},
-    {id:"b17",a:"Release governance and go/no-go",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"R",ptl:"C"}},
-    {id:"b18",a:"Change control and scope management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"C"}},
-    {id:"b19",a:"Delivery reporting to leadership",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"R"}},
-    {id:"b20",a:"CoE positioning and capability strategy",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
-    {id:"b21",a:"Budget and delivery forecasting",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b13",a:"Org-wide governance forums (per-org cadence with vendors and platform team)",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b14",a:"Salesforce governance framework, terms of reference and decision logs",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b15",a:"Vendor delivery and partner governance (quarterly reviews, SLAs, scorecards)",ans:{ssa:"C",pa:"A,R",pm:"R",dol:"I",ptl:"I"}},
+    {id:"b16",a:"Programme roadmap, prioritisation and pipeline alignment",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b17",a:"Stakeholder engagement (clinical, digital, operational teams)",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"I"}},
+    {id:"b18",a:"Delivery risk management and escalation",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"C",ptl:"R"}},
+    {id:"b19",a:"Cross-programme dependency management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b20",a:"Release governance and go/no-go decisions",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"R",ptl:"C"}},
+    {id:"b21",a:"Change control and scope management",ans:{ssa:"C",pa:"A,R",pm:"I",dol:"I",ptl:"C"}},
+    {id:"b22",a:"Delivery reporting to leadership and Salesforce storytelling (internal/external)",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"R"}},
+    {id:"b23",a:"License management, cost allocation and charge-back model",ans:{ssa:"C",pa:"A,R",pm:"R",dol:"I",ptl:"I"}},
+    {id:"b24",a:"CoE positioning and capability strategy",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"I",ptl:"I"}},
+    {id:"b25",a:"Project-to-BAU handover process and knowledge transfer",ans:{ssa:"C",pa:"A,R",pm:"R",dol:"C",ptl:"R"}},
+    {id:"b26",a:"Vendor on/off-boarding process and delivery standards",ans:{ssa:"C",pa:"A,R",pm:"C",dol:"C",ptl:"C"}},
+    {id:"b27",a:"Ways of working — team charter, development plans, upskilling strategy",ans:{ssa:"C",pa:"R",pm:"A,R",dol:"C",ptl:"R"}},
   ]},
-  {id:"ops",name:"Platform operations",color:"#712B13",rows:[
-    {id:"b22",a:"Org health monitoring and limits",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
-    {id:"b23",a:"User management and security model",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"I",ptl:"I"}},
-    {id:"b24",a:"Sandbox provisioning and management",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"R",ptl:"I"}},
-    {id:"b25",a:"Salesforce release impact assessment",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"C",ptl:"C"}},
-    {id:"b26",a:"Data quality and archival strategy",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"I",ptl:"I"}},
-    {id:"b27",a:"Platform documentation and org inventory",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
-    {id:"b28",a:"Support case management",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"I",ptl:"C"}},
-    {id:"b29",a:"Production incident response",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"C",ptl:"R"}},
+  {id:"ops",name:"Platform operations & service management",color:"#712B13",rows:[
+    {id:"b28",a:"Platform health monitoring — Optimiser, security health checks, proactive alerts",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
+    {id:"b29",a:"User management, permissions and security model across all orgs",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"I",ptl:"I"}},
+    {id:"b30",a:"Sandbox provisioning, refresh strategy and environment management",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"R",ptl:"I"}},
+    {id:"b31",a:"Salesforce seasonal release planning and impact assessment",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"R",ptl:"C"}},
+    {id:"b32",a:"Data quality, archival strategy and data extract register compliance",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"I",ptl:"I"}},
+    {id:"b33",a:"Platform documentation, org inventory and configuration management",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
+    {id:"b34",a:"Salesforce support case management and Signature Success utilisation",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"I",ptl:"C"}},
+    {id:"b35",a:"Production incident response, escalation and root cause analysis",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"C",ptl:"R"}},
+    {id:"b36",a:"Production support tooling, incident workflows and SLA reporting",ans:{ssa:"I",pa:"C",pm:"A,R",dol:"C",ptl:"C"}},
+    {id:"b37",a:"Backup, restore and disaster recovery strategy",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
+    {id:"b38",a:"Multi-org security reporting, assessments and compliance",ans:{ssa:"C",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
+    {id:"b39",a:"Salesforce and add-on license allocation, utilisation and forecasting",ans:{ssa:"C",pa:"C",pm:"A,R",dol:"I",ptl:"I"}},
+    {id:"b40",a:"Certificate renewals, audit log retention and compliance calendar",ans:{ssa:"I",pa:"I",pm:"A,R",dol:"C",ptl:"I"}},
   ]},
-  {id:"devops",name:"DevOps & engineering",color:"#72243E",rows:[
-    {id:"b30",a:"CI/CD pipeline design and maintenance",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"I"}},
-    {id:"b31",a:"Branching strategy and source control",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
-    {id:"b32",a:"Automated testing frameworks",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
-    {id:"b33",a:"Deployment execution across orgs",ans:{ssa:"I",pa:"C",pm:"C",dol:"A,R",ptl:"I"}},
-    {id:"b34",a:"Code quality gates",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
-    {id:"b35",a:"Developer tooling and DX",ans:{ssa:"I",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
-    {id:"b36",a:"Environment strategy and refresh cadence",ans:{ssa:"C",pa:"I",pm:"R",dol:"A,R",ptl:"I"}},
-    {id:"b37",a:"Release notes and deployment docs",ans:{ssa:"I",pa:"R",pm:"C",dol:"A,R",ptl:"C"}},
+  {id:"devops",name:"DevOps & release engineering",color:"#72243E",rows:[
+    {id:"b41",a:"CI/CD pipeline design, maintenance and evolution",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"I"}},
+    {id:"b42",a:"Branching strategy, source control governance and merge policies",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b43",a:"Automated testing frameworks (Apex, LWC, integration)",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b44",a:"Deployment execution and release management across all orgs",ans:{ssa:"I",pa:"C",pm:"C",dol:"A,R",ptl:"I"}},
+    {id:"b45",a:"Code quality gates (PMD, ESLint, security scanning)",ans:{ssa:"C",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b46",a:"Developer tooling, scratch org management and DX",ans:{ssa:"I",pa:"I",pm:"I",dol:"A,R",ptl:"C"}},
+    {id:"b47",a:"Environment strategy, refresh cadence and resource optimisation",ans:{ssa:"C",pa:"I",pm:"R",dol:"A,R",ptl:"I"}},
+    {id:"b48",a:"Release documentation and deployment notes",ans:{ssa:"I",pa:"R",pm:"C",dol:"A,R",ptl:"C"}},
+    {id:"b49",a:"New vendor technical onboarding (source control access, environment setup)",ans:{ssa:"I",pa:"I",pm:"C",dol:"A,R",ptl:"I"}},
+    {id:"b50",a:"DevOps practice standards and alignment across all projects and vendors",ans:{ssa:"C",pa:"C",pm:"I",dol:"A,R",ptl:"C"}},
   ]},
   {id:"team",name:"Team delivery & people",color:"#3C3489",rows:[
-    {id:"b38",a:"Sprint planning and execution",ans:{ssa:"I",pa:"C",pm:"I",dol:"I",ptl:"A,R"}},
-    {id:"b39",a:"Daily standups and unblocking",ans:{ssa:"I",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
-    {id:"b40",a:"Code review (teaching and quality)",ans:{ssa:"I",pa:"I",pm:"I",dol:"C",ptl:"A,R"}},
-    {id:"b41",a:"Developer mentoring and uplift",ans:{ssa:"C",pa:"C",pm:"I",dol:"I",ptl:"A,R"}},
-    {id:"b42",a:"Translating designs to user stories",ans:{ssa:"C",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
-    {id:"b43",a:"Sprint delivery reporting to PA",ans:{ssa:"I",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
-    {id:"b44",a:"Team onboarding and ramp-up",ans:{ssa:"C",pa:"C",pm:"C",dol:"C",ptl:"A,R"}},
-    {id:"b45",a:"Production troubleshooting (code-level)",ans:{ssa:"C",pa:"I",pm:"C",dol:"C",ptl:"A,R"}},
-    {id:"b46",a:"Best practices enforcement",ans:{ssa:"C",pa:"I",pm:"I",dol:"C",ptl:"A,R"}},
-    {id:"b47",a:"Resource and skills gap identification",ans:{ssa:"C",pa:"R",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b51",a:"Sprint planning, execution and velocity management",ans:{ssa:"I",pa:"C",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b52",a:"Daily standups, blocker resolution and team coordination",ans:{ssa:"I",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b53",a:"Code review as a teaching and quality mechanism",ans:{ssa:"I",pa:"I",pm:"I",dol:"C",ptl:"A,R"}},
+    {id:"b54",a:"Developer mentoring, coaching and capability uplift",ans:{ssa:"C",pa:"C",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b55",a:"Translating solution designs into implementable user stories",ans:{ssa:"C",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b56",a:"Sprint delivery reporting to PA and leadership",ans:{ssa:"I",pa:"I",pm:"I",dol:"I",ptl:"A,R"}},
+    {id:"b57",a:"Team onboarding, ramp-up and knowledge transfer (train-the-trainer)",ans:{ssa:"C",pa:"C",pm:"C",dol:"C",ptl:"A,R"}},
+    {id:"b58",a:"L3 platform support (distinct from vendor L3 application support)",ans:{ssa:"C",pa:"I",pm:"C",dol:"C",ptl:"A,R"}},
+    {id:"b59",a:"Best practices enforcement (governor limits, bulkification, security)",ans:{ssa:"C",pa:"I",pm:"I",dol:"C",ptl:"A,R"}},
+    {id:"b60",a:"Skills matrix management, resource gaps and development planning",ans:{ssa:"C",pa:"R",pm:"C",dol:"I",ptl:"A,R"}},
+    {id:"b61",a:"Salesforce upskilling programme delivery and progress tracking",ans:{ssa:"C",pa:"C",pm:"C",dol:"I",ptl:"A,R"}},
+    {id:"b62",a:"Platform BAU support coordination with Helpdesk and Product Teams",ans:{ssa:"I",pa:"C",pm:"C",dol:"I",ptl:"A,R"}},
   ]}
 ];
 const BASE_TOTAL=BASE_DOMAINS.reduce((s,d)=>s+d.rows.length,0);
