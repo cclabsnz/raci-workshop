@@ -267,6 +267,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
       <button class="share-btn" id="endSessionBtn" style="display:none;background:var(--incorrect-bg);color:#A32D2D;border-color:var(--incorrect-border)" onclick="endSession()">End session</button>
     </div>
   </div>
+  <div id="exportNudge" style="display:none;background:var(--partial-bg);border:1px solid var(--partial-border);border-radius:var(--radius);padding:8px 14px;font-size:13px;color:#854F0B;display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <span>⚠ Your answers are saved in <strong>this browser only</strong>. Export to file so you don't lose them if you switch device or browser.</span>
+    <button class="btn btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="exportMyAnswers();hideExportNudge()">Export now</button>
+    <button onclick="hideExportNudge()" style="background:none;border:none;cursor:pointer;color:#854F0B;font-size:16px;line-height:1;padding:0 2px;flex-shrink:0">✕</button>
+  </div>
   <div class="instructions">
     <div><span class="key-badge chip-R">R</span> Responsible</div>
     <div><span class="key-badge chip-A">A</span> Accountable</div>
@@ -547,7 +552,7 @@ function showToast(msg){
 }
 
 // ==================== RENDERING ====================
-function renderAll(){renderParticipants();renderViewTabs();renderRoleTabs();renderActionBtns();renderChipTray();renderMainContent();}
+function renderAll(){renderParticipants();renderViewTabs();renderRoleTabs();renderActionBtns();renderChipTray();renderMainContent();maybeShowExportNudge();}
 
 function renderParticipants(){
   const btn=document.getElementById("endSessionBtn");
@@ -627,7 +632,7 @@ function renderAssignView(container){
       const val=my[key]||"";
       html+=`<div class="activity-row ${row.custom?'is-custom':''}" data-key="${key}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
       html+=`<div class="activity-label">${row.a}`;
-      if(row.custom) html+=`<span class="custom-badge">added by ${row.addedBy}</span>`;
+      if(row.custom) html+=`<span class="custom-badge">added by ${row.addedBy}</span><button onclick="event.stopPropagation();send({type:'remove_activity',id:'${row.id}'})" title="Delete activity" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:13px;padding:0 2px;margin-left:4px;line-height:1;vertical-align:middle" onmouseover="this.style.color='#A32D2D'" onmouseout="this.style.color='var(--text-hint)'">✕</button>`;
       html+=`</div>`;
       html+=`<div class="drop-zone ${val?'filled':''}" onclick="cycleValue('${key}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
       if(val){html+=`<div class="placed-chip ${chipCls(val)}">${val}</div><div class="remove-x" onclick="event.stopPropagation();removeValue('${key}')">✕</div>`;}
@@ -851,6 +856,7 @@ function renderCardsView(container){
 }
 
 function exportMyAnswers(){
+  hideExportNudge();
   const answers=myAnswers();
   localStorage.setItem("raci-answers-"+myName,JSON.stringify(answers));
   const data=JSON.stringify({name:myName,answers},null,2);
@@ -898,6 +904,32 @@ function exportAgreedCSV(){
   a.download=`raci-matrix-${roomId}.csv`;
   a.click();
 }
+
+// ==================== EXPORT NUDGE ====================
+let nudgeDismissed=false;
+let nudgeTimer=null;
+
+function maybeShowExportNudge(){
+  if(nudgeDismissed)return;
+  const count=Object.keys(myAnswers()).length;
+  if(count>=5){
+    const el=document.getElementById("exportNudge");
+    if(el)el.style.display="flex";
+  }
+}
+function hideExportNudge(){
+  nudgeDismissed=true;
+  const el=document.getElementById("exportNudge");
+  if(el)el.style.display="none";
+  clearTimeout(nudgeTimer);
+}
+
+window.addEventListener("beforeunload",e=>{
+  if(myName&&Object.keys(myAnswers()).length>0){
+    e.preventDefault();
+    e.returnValue="";
+  }
+});
 
 // ==================== INIT ====================
 function showLobby(){
