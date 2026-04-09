@@ -14,11 +14,27 @@ interface CustomActivity {
   addedBy: string;
 }
 
+interface Role {
+  id: string;
+  label: string;
+  full: string;
+}
+
 interface RoomState {
   participants: Record<string, Participant>;
   customActivities: CustomActivity[];
+  deletedActivityIds: string[];
+  roles: Role[];
   creatorName: string;
 }
+
+const DEFAULT_ROLES: Role[] = [
+  { id: "ssa", label: "SSA", full: "Senior Solution Architect" },
+  { id: "pa",  label: "PA",  full: "Principal Advisor — SF Delivery" },
+  { id: "pm",  label: "PM",  full: "Platform Manager" },
+  { id: "dol", label: "DOL", full: "DevOps Lead" },
+  { id: "ptl", label: "PTL", full: "Platform Technical Lead" },
+];
 
 const COLORS = [
   "#534AB7", "#1D9E75", "#D85A30", "#185FA5", "#D4537E",
@@ -26,17 +42,24 @@ const COLORS = [
 ];
 
 export default class RACIServer implements Party.Server {
-  state: RoomState = { participants: {}, customActivities: [], creatorName: "" };
+  state: RoomState = {
+    participants: {},
+    customActivities: [],
+    deletedActivityIds: [],
+    roles: [...DEFAULT_ROLES],
+    creatorName: "",
+  };
   colorIndex = 0;
 
   constructor(readonly room: Party.Room) {}
 
   onConnect(conn: Party.Connection) {
-    // Send current state to the new connection
     conn.send(JSON.stringify({
       type: "sync",
       participants: this.state.participants,
       customActivities: this.state.customActivities,
+      deletedActivityIds: this.state.deletedActivityIds,
+      roles: this.state.roles,
       creatorName: this.state.creatorName,
     }));
   }
@@ -48,9 +71,13 @@ export default class RACIServer implements Party.Server {
       case "join": {
         const name = msg.name?.trim();
         if (!name) return;
-        // First person to join becomes the creator
-        if (!this.state.creatorName) this.state.creatorName = name;
-        // If name already taken by a disconnected user, reclaim it
+        if (!this.state.creatorName) {
+          this.state.creatorName = name;
+          // Accept initial role config from creator
+          if (msg.roles && Array.isArray(msg.roles) && msg.roles.length > 0) {
+            this.state.roles = msg.roles;
+          }
+        }
         if (this.state.participants[name]) {
           this.state.participants[name].connId = sender.id;
         } else {
@@ -84,6 +111,16 @@ export default class RACIServer implements Party.Server {
         break;
       }
 
+      case "bulk_answers": {
+        const p = this.findParticipant(sender.id);
+        if (!p) return;
+        if (msg.answers && typeof msg.answers === "object") {
+          p.answers = msg.answers;
+          this.broadcast();
+        }
+        break;
+      }
+
       case "clear_role": {
         const p = this.findParticipant(sender.id);
         if (!p) return;
@@ -108,24 +145,47 @@ export default class RACIServer implements Party.Server {
         break;
       }
 
-      case "bulk_answers": {
-        const p = this.findParticipant(sender.id);
-        if (!p) return;
-        if (msg.answers && typeof msg.answers === "object") {
-          p.answers = msg.answers;
-          this.broadcast();
+      case "remove_activity": {
+        const id: string = msg.id;
+        if (id.startsWith("b")) {
+          // Base activity — add to deleted list
+          if (!this.state.deletedActivityIds.includes(id)) {
+            this.state.deletedActivityIds.push(id);
+          }
+        } else {
+          // Custom activity — remove entirely
+          this.state.customActivities = this.state.customActivities.filter(
+            (a) => a.id !== id
+          );
         }
+        // Clean up all participant answers referencing this activity
+        Object.values(this.state.participants).forEach((p) => {
+          Object.keys(p.answers).forEach((k) => {
+            if (k.endsWith(":" + id)) delete p.answers[k];
+          });
+        });
+        this.broadcast();
         break;
       }
 
-      case "remove_activity": {
-        this.state.customActivities = this.state.customActivities.filter(
-          (a) => a.id !== msg.id
-        );
-        // Also remove all answers referencing this activity
+      case "add_role": {
+        const label = (msg.label ?? "").trim().toUpperCase().slice(0, 8);
+        const full  = (msg.full  ?? "").trim().slice(0, 60);
+        if (!label || !full) return;
+        const id = "cr_" + Date.now();
+        this.state.roles.push({ id, label, full });
+        this.broadcast();
+        break;
+      }
+
+      case "remove_role": {
+        const roleId: string = msg.roleId;
+        if (!roleId) return;
+        this.state.roles = this.state.roles.filter((r) => r.id !== roleId);
+        // Clean up all participant answers for this role
         Object.values(this.state.participants).forEach((p) => {
           Object.keys(p.answers).forEach((k) => {
-            if (k.includes(":" + msg.id)) delete p.answers[k];
+            if (k.startsWith(roleId + ":")) delete p.answers[k];
           });
         });
         this.broadcast();
@@ -134,9 +194,8 @@ export default class RACIServer implements Party.Server {
     }
   }
 
-  onClose(conn: Party.Connection) {
+  onClose(_conn: Party.Connection) {
     // Don't remove participant on disconnect — they might rejoin
-    // Room auto-expires when all connections close (PartyKit default)
   }
 
   findParticipant(connId: string): Participant | undefined {
@@ -146,14 +205,14 @@ export default class RACIServer implements Party.Server {
   }
 
   broadcast() {
-    this.room.broadcast(
-      JSON.stringify({
-        type: "sync",
-        participants: this.state.participants,
-        customActivities: this.state.customActivities,
-        creatorName: this.state.creatorName,
-      })
-    );
+    this.room.broadcast(JSON.stringify({
+      type: "sync",
+      participants: this.state.participants,
+      customActivities: this.state.customActivities,
+      deletedActivityIds: this.state.deletedActivityIds,
+      roles: this.state.roles,
+      creatorName: this.state.creatorName,
+    }));
   }
 }
 

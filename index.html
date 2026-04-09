@@ -110,6 +110,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .drop-zone .placed-chip{font-family:var(--mono);font-size:14px;font-weight:600;width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:6px}
 .drop-zone .remove-x{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--text-muted);color:white;font-size:10px;display:none;align-items:center;justify-content:center;cursor:pointer;line-height:1}
 .drop-zone:hover .remove-x{display:flex}
+.activity-row:hover .activity-del-btn{opacity:.4!important}
+.activity-del-btn:hover{opacity:1!important}
 .add-activity-row{display:flex;gap:8px;margin-top:6px;align-items:center}
 .add-activity-input{flex:1;font-family:var(--font);font-size:13px;padding:7px 12px;border:1.5px dashed var(--border);border-radius:var(--radius);outline:none;background:transparent;color:var(--text);transition:border-color .15s}
 .add-activity-input:focus{border-color:var(--accent);border-style:solid}
@@ -139,6 +141,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 /* Toast */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:13px;font-weight:500;padding:10px 20px;border-radius:var(--radius);box-shadow:var(--shadow-lift);opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
 .toast.show{opacity:1}
+
+/* Role tab with delete */
+.role-tab-wrap{position:relative;display:inline-flex;align-items:center}
+.role-tab-del{position:absolute;right:-5px;top:-5px;width:15px;height:15px;background:var(--text-muted);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:9px;display:none;align-items:center;justify-content:center;padding:0;line-height:1;z-index:1}
+.role-tab-wrap:hover .role-tab-del{display:flex}
+.role-tab-del:hover{background:#A32D2D}
+/* Modal role config */
+.modal-roles{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.modal-role-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);padding:4px 10px;font-size:13px;font-weight:500}
+.modal-role-chip button{background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:12px;padding:0;line-height:1}
+.modal-role-chip button:hover{color:#A32D2D}
+.modal-add-role{background:none;border:1.5px dashed var(--border);border-radius:var(--radius);padding:4px 12px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:var(--font)}
+.modal-add-role:hover{border-color:var(--accent);color:var(--accent)}
 
 /* Landing page */
 .landing{max-width:860px;margin:0 auto;padding:60px 20px 80px}
@@ -297,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 const PARTYKIT_HOST = "raci-workshop.cclabsnz.partykit.dev";
 
 // ==================== DATA ====================
-const ROLES=[
+const DEFAULT_ROLES=[
   {id:"ssa",label:"SSA",full:"Senior Solution Architect"},
   {id:"pa",label:"PA",full:"Principal Advisor — SF Delivery"},
   {id:"pm",label:"PM",full:"Platform Manager"},
@@ -381,6 +396,16 @@ const BASE_DOMAINS=[
 ];
 const BASE_TOTAL=BASE_DOMAINS.reduce((s,d)=>s+d.rows.length,0);
 
+// Dynamic room state (overridden by server sync)
+let roles=[...DEFAULT_ROLES];
+let deletedActivityIds=[];
+let pendingRoles=[...DEFAULT_ROLES]; // used only in create modal before room starts
+
+function effectiveRoles(){ return roles; }
+function effectiveTotal(){
+  return BASE_DOMAINS.reduce((s,d)=>s+d.rows.filter(r=>!deletedActivityIds.includes(r.id)).length,0)+customActivities.length;
+}
+
 // ==================== STATE ====================
 let myName="";
 let roomId="";
@@ -394,8 +419,9 @@ let customActivities=[];
 
 function allRows(domainId){
   const base=BASE_DOMAINS.find(d=>d.id===domainId);
+  const filteredBase=base.rows.filter(r=>!deletedActivityIds.includes(r.id));
   const customs=customActivities.filter(c=>c.domainId===domainId);
-  return[...base.rows,...customs.map(c=>({id:c.id,a:c.activity,ans:null,custom:true,addedBy:c.addedBy}))];
+  return[...filteredBase,...customs.map(c=>({id:c.id,a:c.activity,ans:null,custom:true,addedBy:c.addedBy}))];
 }
 function myAnswers(){ return participants[myName]?.answers||{}; }
 
@@ -412,7 +438,10 @@ function connectToRoom(room, name){
   ws=new WebSocket(`${protocol}://${PARTYKIT_HOST}/party/${roomId}`);
   ws.onopen=()=>{
     setConnStatus(true);
-    ws.send(JSON.stringify({type:"join",name:myName}));
+    const joinMsg={type:"join",name:myName};
+    if(pendingRoles&&pendingRoles.length)joinMsg.roles=pendingRoles;
+    ws.send(JSON.stringify(joinMsg));
+    pendingRoles=null; // only send once
   };
   ws.onclose=()=>{ setConnStatus(false); setTimeout(()=>connectToRoom(roomId,myName),2000); };
   ws.onerror=()=>setConnStatus(false);
@@ -421,7 +450,12 @@ function connectToRoom(room, name){
     if(msg.type==="sync"){
       participants=msg.participants||{};
       customActivities=msg.customActivities||[];
+      deletedActivityIds=msg.deletedActivityIds||[];
+      if(msg.roles&&msg.roles.length)roles=msg.roles;
       if(msg.creatorName)creatorName=msg.creatorName;
+      // If currentRole was removed, fall back to first available
+      if(!effectiveRoles().find(r=>r.id===currentRole)&&effectiveRoles().length)
+        currentRole=effectiveRoles()[0].id;
       // Auto-save my answers to localStorage after every sync
       const mine=participants[myName]?.answers;
       if(mine&&Object.keys(mine).length>0)
@@ -477,16 +511,20 @@ function renderLobby(){
     inp.addEventListener("input",()=>{document.getElementById("joinBtn").disabled=!inp.value.trim()});
     inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&inp.value.trim())doJoin(urlRoom)});
   } else {
+    pendingRoles=[...DEFAULT_ROLES];
     el.innerHTML=`
       <h2>RACI workshop</h2>
       <p>Create a room to start a collaborative RACI alignment session. Share the link so others can join. Everything is ephemeral — data disappears when the session ends.</p>
       <label for="hostName">Your name</label>
       <input type="text" id="hostName" placeholder="e.g. Gaurav..." autocomplete="off" autofocus>
+      <label style="margin-top:4px">Roles <span style="font-size:11px;color:var(--text-hint);font-weight:400">— remove or add before starting</span></label>
+      <div class="modal-roles" id="pendingRolesList"></div>
       <button class="modal-btn" id="createBtn" onclick="doCreate()" disabled>Create room</button>
       <div class="or-divider">or</div>
       <label for="joinCode">Join with room code</label>
       <input type="text" id="joinCode" placeholder="e.g. ABC123" style="font-family:var(--mono);text-transform:uppercase;text-align:center;letter-spacing:2px">
       <button class="modal-btn secondary" id="joinCodeBtn" onclick="doJoinCode()" disabled>Join existing room</button>`;
+    renderPendingRoles();
     const hostInp=document.getElementById("hostName");
     hostInp.addEventListener("input",()=>{document.getElementById("createBtn").disabled=!hostInp.value.trim()});
     hostInp.addEventListener("keydown",e=>{if(e.key==="Enter"&&hostInp.value.trim())doCreate()});
@@ -494,6 +532,27 @@ function renderLobby(){
     codeInp.addEventListener("input",()=>{document.getElementById("joinCodeBtn").disabled=!codeInp.value.trim()});
     codeInp.addEventListener("keydown",e=>{if(e.key==="Enter"&&codeInp.value.trim())doJoinCode()});
   }
+}
+
+function renderPendingRoles(){
+  const el=document.getElementById("pendingRolesList");
+  if(!el)return;
+  el.innerHTML=pendingRoles.map(r=>
+    `<span class="modal-role-chip">${r.label}<button onclick="removePendingRole('${r.id}')" title="Remove">✕</button></span>`
+  ).join("")+`<button class="modal-add-role" onclick="addPendingRole()">+ Add role</button>`;
+}
+function removePendingRole(id){
+  if(pendingRoles.length<=1){alert("At least one role is required.");return;}
+  pendingRoles=pendingRoles.filter(r=>r.id!==id);
+  renderPendingRoles();
+}
+function addPendingRole(){
+  const label=prompt("Role abbreviation (e.g. BA, PO):")?.trim().toUpperCase();
+  if(!label)return;
+  const full=prompt(`Full title for ${label}:`)?.trim();
+  if(!full)return;
+  pendingRoles=[...pendingRoles,{id:"cr_"+Date.now(),label,full}];
+  renderPendingRoles();
 }
 
 function doCreate(){
@@ -545,6 +604,23 @@ function endSession(){
   if(!confirm("End this session for everyone? All data will be lost."))return;
   send({type:"close_room"});
 }
+function deleteActivity(id){
+  if(!confirm("Remove this activity for everyone in the room?"))return;
+  send({type:"remove_activity",id});
+}
+function addRole(){
+  const label=prompt("Role abbreviation (e.g. BA, PO, CTO):")?.trim().toUpperCase();
+  if(!label)return;
+  const full=prompt(`Full title for ${label}:`)?.trim();
+  if(!full)return;
+  send({type:"add_role",label,full});
+}
+function removeRole(id){
+  const role=effectiveRoles().find(r=>r.id===id);
+  if(!role)return;
+  if(!confirm(`Remove the "${role.label}" role? All answers for this role will be deleted for everyone.`))return;
+  send({type:"remove_role",roleId:id});
+}
 function showToast(msg){
   const el=document.getElementById("toast");
   el.textContent=msg;el.classList.add("show");
@@ -559,8 +635,8 @@ function renderParticipants(){
   if(btn)btn.style.display=(myName&&creatorName&&myName===creatorName)?"":"none";
   const bar=document.getElementById("participantsBar");
   const names=Object.keys(participants).sort();
-  const activitiesTotal=BASE_TOTAL+customActivities.length;
-  const totalPossible=ROLES.length*activitiesTotal;
+  const activitiesTotal=effectiveTotal();
+  const totalPossible=effectiveRoles().length*activitiesTotal;
   bar.innerHTML=names.map(n=>{
     const answered=Object.keys(participants[n].answers||{}).length;
     const pct=totalPossible>0?Math.round(answered/totalPossible*100):0;
@@ -585,9 +661,12 @@ function renderViewTabs(){
 function renderRoleTabs(){
   const el=document.getElementById("roleTabs");
   if(currentView==="matrix"||currentView==="cards"){el.innerHTML="";return;}
-  el.innerHTML=ROLES.map(r=>
-    `<button class="tab-btn ${currentRole===r.id?'active':''}" onclick="setRole('${r.id}')" title="${r.full}">${r.label}</button>`
-  ).join("");
+  el.innerHTML=effectiveRoles().map(r=>
+    `<span class="role-tab-wrap">
+      <button class="tab-btn ${currentRole===r.id?'active':''}" onclick="setRole('${r.id}')" title="${r.full}">${r.label}</button>
+      <button class="role-tab-del" onclick="event.stopPropagation();removeRole('${r.id}')" title="Remove ${r.label}">✕</button>
+    </span>`
+  ).join("")+`<button class="tab-btn" style="border-style:dashed;color:var(--text-muted)" onclick="addRole()">+ Role</button>`;
 }
 function renderActionBtns(){
   const el=document.getElementById("actionBtns");
@@ -632,7 +711,8 @@ function renderAssignView(container){
       const val=my[key]||"";
       html+=`<div class="activity-row ${row.custom?'is-custom':''}" data-key="${key}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
       html+=`<div class="activity-label">${row.a}`;
-      if(row.custom) html+=`<span class="custom-badge">added by ${row.addedBy}</span><button onclick="event.stopPropagation();send({type:'remove_activity',id:'${row.id}'})" title="Delete activity" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:13px;padding:0 2px;margin-left:4px;line-height:1;vertical-align:middle" onmouseover="this.style.color='#A32D2D'" onmouseout="this.style.color='var(--text-hint)'">✕</button>`;
+      if(row.custom) html+=`<span class="custom-badge">added by ${row.addedBy}</span>`;
+      html+=`<button onclick="event.stopPropagation();deleteActivity('${row.id}')" title="Remove activity" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:13px;padding:0 2px;margin-left:6px;line-height:1;vertical-align:middle;opacity:0" onmouseover="this.style.opacity='1';this.style.color='#A32D2D'" onmouseout="this.style.opacity='0';this.style.color='var(--text-hint)'" class="activity-del-btn">✕</button>`;
       html+=`</div>`;
       html+=`<div class="drop-zone ${val?'filled':''}" onclick="cycleValue('${key}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${key}')">`;
       if(val){html+=`<div class="placed-chip ${chipCls(val)}">${val}</div><div class="remove-x" onclick="event.stopPropagation();removeValue('${key}')">✕</div>`;}
@@ -706,7 +786,7 @@ function renderHeatmapView(container){
     html+=`</div>`;
   });
   // Summary cards
-  html+=`<div style="margin-top:24px"><div class="domain-header" style="color:var(--text)">Accuracy — ${ROLES.find(r=>r.id===currentRole).full}</div>`;
+  html+=`<div style="margin-top:24px"><div class="domain-header" style="color:var(--text)">Accuracy — ${(effectiveRoles().find(r=>r.id===currentRole)||{full:currentRole}).full}</div>`;
   html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">`;
   names.forEach(n=>{
     let correct=0,answered=0;
@@ -798,15 +878,15 @@ function renderMatrixView(container){
   if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
   let html=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Showing consensus answer per role. Percentage reflects agreement across all participants.</p>`;
   html+=`<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th>Activity</th>`;
-  ROLES.forEach(r=>html+=`<th title="${r.full}">${r.label}</th>`);
+  effectiveRoles().forEach(r=>html+=`<th title="${r.full}">${r.label}</th>`);
   html+=`</tr></thead><tbody>`;
   BASE_DOMAINS.forEach(d=>{
     const rows=allRows(d.id);
-    html+=`<tr class="domain-row"><td colspan="${ROLES.length+1}" style="color:${d.color}">${d.name}</td></tr>`;
+    html+=`<tr class="domain-row"><td colspan="${effectiveRoles().length+1}" style="color:${d.color}">${d.name}</td></tr>`;
     rows.forEach(row=>{
       const label=row.custom?`${row.a} <span class="custom-badge">custom</span>`:row.a;
       html+=`<tr><td>${label}</td>`;
-      ROLES.forEach(r=>{
+      effectiveRoles().forEach(r=>{
         const{value,pct}=consensusAnswer(r.id,row.id);
         if(!value){html+=`<td><span style="color:var(--text-hint)">—</span></td>`;return;}
         const cls=chipCls(value);
@@ -833,7 +913,7 @@ function renderCardsView(container){
     {val:"I",label:"Informed",cls:"chip-I"},
   ];
   let html=`<div class="cards-grid">`;
-  ROLES.forEach(role=>{
+  effectiveRoles().forEach(role=>{
     html+=`<div class="role-resp-card"><div class="role-resp-header"><div class="role-resp-abbr">${role.label}</div><div class="role-resp-full">${role.full}</div></div>`;
     RACI_TYPES.forEach(type=>{
       const activities=[];
@@ -892,10 +972,10 @@ function importMyAnswers(){
 }
 
 function exportAgreedCSV(){
-  let csv="Domain,Activity,Type,"+ROLES.map(r=>r.label).join(",")+"\n";
+  let csv="Domain,Activity,Type,"+effectiveRoles().map(r=>r.label).join(",")+"\n";
   BASE_DOMAINS.forEach(d=>{
     allRows(d.id).forEach(row=>{
-      const vals=ROLES.map(r=>consensusAnswer(r.id,row.id).value||"");
+      const vals=effectiveRoles().map(r=>consensusAnswer(r.id,row.id).value||"");
       csv+=`"${d.name}","${row.a}","${row.custom?'Custom':'Base'}",${vals.map(v=>`"${v}"`).join(",")}\n`;
     });
   });
