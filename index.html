@@ -1208,12 +1208,8 @@ function exportPDF(){
     const border=v==='NA'?'#ddd':v.includes('R')&&v.includes('A')?'#85B7EB':v.includes('A')?'#5DCAA5':v.includes('R')?'#85B7EB':v.includes('C')?'#F0997B':'#D3D1C7';
     return`<span style="display:inline-block;background:${bg};color:${fg};border:1px solid ${border};border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace">${v}</span>`;
   }
-  function pdfLetters(v){if(!v)return[];if(v==='NA')return['NA'];return v.split(',').map(x=>x.trim()).filter(Boolean);}
-
   const PALETTE=['#3B7DD8','#2D9E7A','#D4732A','#8B4EC4','#C4395E','#1E9AB0','#C49E2A','#5D8A3C'];
   const roleColor={};rls.forEach((r,i)=>roleColor[r.id]=PALETTE[i%PALETTE.length]);
-
-  const SEGS=[{key:'R',bg:'#85B7EB',fg:'#0C447C'},{key:'A',bg:'#5DCAA5',fg:'#085041'},{key:'C',bg:'#F0997B',fg:'#712B13'},{key:'I',bg:'#D3D1C7',fg:'#4A4A46'},{key:'NA',bg:'#e8e8e8',fg:'#888'}];
 
   // ── RACI Matrix section ───────���───────────────────────────────
   let matrixRows='';
@@ -1242,26 +1238,6 @@ function exportPDF(){
       });
       matrixRows+=`</span></td></tr>`;
     });
-  });
-
-  // ── Workload bar section ──────────────────────────────────────
-  let barRows='';
-  rls.forEach(r=>{
-    const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
-    allRowsList.forEach(row=>{const{value}=consensusAnswer(r.id,row.id);if(!value){counts.none++;return;}pdfLetters(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});});
-    const answered=total-counts.none;
-    let segs='';
-    SEGS.forEach(s=>{
-      const c=counts[s.key];if(!c)return;
-      const w=(c/total*100).toFixed(1);
-      segs+=`<div style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${s.fg};min-width:${c>0?'16px':'0'}">${c}</div>`;
-    });
-    if(counts.none)segs+=`<div style="flex:${counts.none};background:#f8f8f8;display:flex;align-items:center;justify-content:center;font-size:9px;color:#ccc">${counts.none}</div>`;
-    barRows+=`<tr>
-      <td style="text-align:right;padding:4px 8px 4px 0;font-size:11px;font-weight:700;white-space:nowrap;width:40px">${r.label}</td>
-      <td style="padding:4px 0"><div style="display:flex;height:24px;border-radius:3px;overflow:hidden;border:1px solid #e8e8e8">${segs}</div></td>
-      <td style="padding:4px 0 4px 8px;font-size:10px;color:#888;white-space:nowrap;width:60px">${answered}/${total}</td>
-    </tr>`;
   });
 
   // ── Accountability treemap ────────────────────────────────────
@@ -1340,12 +1316,6 @@ function exportPDF(){
     <span class="legend-item"><span class="legend-dot" style="background:#e8e8e8;border:1px solid #ddd"></span>None</span>
   </div>
   <div style="margin-bottom:24px">${treemap}</div>
-
-  <h2>Workload per Role <span style="font-size:9px;font-weight:400;color:#999;text-transform:none;letter-spacing:0">— letter occurrences per role (A,R counts as both)</span></h2>
-  <div style="margin-bottom:8px">
-    ${SEGS.map(s=>`<span class="legend-item"><span class="legend-dot" style="background:${s.bg}"></span>${s.key}</span>`).join('')}
-  </div>
-  <table style="width:auto;min-width:400px"><tbody>${barRows}</tbody></table>
 
   <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
