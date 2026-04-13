@@ -776,27 +776,21 @@ function renderChartsView(container){
   const names=Object.keys(participants);
   if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
 
-  // Role colour palette (for treemap ownership)
   const PALETTE=['#3B7DD8','#2D9E7A','#D4732A','#8B4EC4','#C4395E','#1E9AB0','#C49E2A','#5D8A3C'];
-  const roleColor={};
-  rls.forEach((r,i)=>roleColor[r.id]=PALETTE[i%PALETTE.length]);
-
-  // Split a consensus value into its individual letters
-  function letters(v){if(!v)return[];if(v==='NA')return['NA'];return v.split(',').map(x=>x.trim()).filter(Boolean);}
+  const roleColor={};rls.forEach((r,i)=>roleColor[r.id]=PALETTE[i%PALETTE.length]);
+  function ltrs(v){if(!v)return[];if(v==='NA')return['NA'];return v.split(',').map(x=>x.trim()).filter(Boolean);}
 
   const allRowsList=[];
   BASE_DOMAINS.forEach(d=>allRows(d.id).forEach(r=>allRowsList.push({...r,domain:d})));
 
-  // ── TREEMAP ──────────────────────────────────────────────
-  let html=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Accountability map</div>`;
-  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Each cell = one activity, coloured by who holds <strong>A</strong> (Accountable) per consensus.</p>`;
+  let html='';
 
-  // Legend
+  // ── TREEMAP (always shown) ────────────────────────────────
+  html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Accountability map</div>`;
+  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Each cell = one activity, coloured by who holds <strong>A</strong> per consensus.</p>`;
   html+=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"><span style="font-size:11px;color:var(--text-hint)">A →</span>`;
   rls.forEach(r=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:${roleColor[r.id]};display:inline-block"></span>${r.label}</span>`);
   html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:var(--surface-alt);border:.5px solid var(--border);display:inline-block"></span>None</span></div>`;
-
-  // Domain blocks
   html+=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px">`;
   BASE_DOMAINS.forEach(d=>{
     const rows=allRows(d.id);
@@ -815,48 +809,225 @@ function renderChartsView(container){
   });
   html+=`</div>`;
 
-  // ── STACKED BAR (flag: ?workload) ────────────────────────
+  // ── WORKLOAD BAR (flag: ?workload) ────────────────────────
   if(chartsShowWorkload){
-    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Workload per role</div>`;
-    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Letter occurrences per role across all activities. A,R counts as both A and R.</p>`;
-
-    const SEGS=[
-      {key:'R',bg:'#85B7EB',fg:'#0C447C'},
-      {key:'A',bg:'#5DCAA5',fg:'#085041'},
-      {key:'C',bg:'#F0997B',fg:'#712B13'},
-      {key:'I',bg:'#D3D1C7',fg:'#4A4A46'},
-      {key:'NA',bg:'var(--border-light)',fg:'var(--text-hint)'},
-    ];
+    const SEGS=[{key:'R',bg:'#85B7EB',fg:'#0C447C'},{key:'A',bg:'#5DCAA5',fg:'#085041'},{key:'C',bg:'#F0997B',fg:'#712B13'},{key:'I',bg:'#D3D1C7',fg:'#4A4A46'},{key:'NA',bg:'var(--border-light)',fg:'var(--text-hint)'}];
     const total=allRowsList.length;
-
+    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Workload per role</div>`;
+    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Letter occurrences per role. A,R counts as both.</p>`;
     html+=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">`;
     SEGS.forEach(s=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:${s.bg};display:inline-block"></span>${s.key}</span>`);
-    html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg);border:.5px solid var(--border);display:inline-block"></span>—</span>`;
-    html+=`</div>`;
-
-    html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
+    html+=`</div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px">`;
     rls.forEach(r=>{
       const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
-      allRowsList.forEach(row=>{
-        const{value}=consensusAnswer(r.id,row.id);
-        if(!value){counts.none++;return;}
-        letters(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});
-      });
-      const assigned=total-counts.none;
-      html+=`<div style="display:flex;align-items:center;gap:10px">`;
-      html+=`<div style="width:36px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0" title="${r.full}">${r.label}</div>`;
+      allRowsList.forEach(row=>{const{value}=consensusAnswer(r.id,row.id);if(!value){counts.none++;return;}ltrs(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});});
+      html+=`<div style="display:flex;align-items:center;gap:10px"><div style="width:36px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0" title="${r.full}">${r.label}</div>`;
       html+=`<div style="flex:1;display:flex;border-radius:4px;overflow:hidden;height:30px;border:.5px solid var(--border-light)">`;
-      SEGS.forEach(s=>{
-        const c=counts[s.key];if(!c)return;
-        html+=`<div title="${s.key}: ${c}" style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${s.fg}">${c}</div>`;
-      });
-      if(counts.none){
-        html+=`<div title="Unassigned: ${counts.none}" style="flex:${counts.none};background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-hint)">${counts.none}</div>`;
-      }
-      html+=`</div>`;
-      html+=`<div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${assigned}/${total}</div>`;
-      html+=`</div>`;
+      SEGS.forEach(s=>{const c=counts[s.key];if(!c)return;html+=`<div title="${s.key}: ${c}" style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${s.fg}">${c}</div>`;});
+      if(counts.none)html+=`<div title="Unassigned: ${counts.none}" style="flex:${counts.none};background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-hint)">${counts.none}</div>`;
+      html+=`</div><div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${total-counts.none}/${total}</div></div>`;
     });
+    html+=`</div>`;
+  }
+
+  // ── FLOW DIAGRAM (flag: ?flow) ────────────────────────────
+  if(chartsShowFlow){
+    // Count R+A assignments per domain→role
+    const fData={};const domTot={};const roleTot={};
+    rls.forEach(r=>roleTot[r.id]=0);
+    BASE_DOMAINS.forEach(d=>{
+      fData[d.id]={};domTot[d.id]=0;
+      rls.forEach(r=>{
+        const cnt=allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&value!=='NA'&&(value.includes('R')||value.includes('A'));}).length;
+        fData[d.id][r.id]=cnt;domTot[d.id]+=cnt;roleTot[r.id]+=cnt;
+      });
+    });
+    const total=Object.values(domTot).reduce((a,b)=>a+b,0);
+    if(total>0){
+      const W=520,H=320,padY=16,nodeW=10,gap=5,usable=H-padY*2;
+      // Domain node positions
+      const dPos={};let y=padY;
+      BASE_DOMAINS.forEach(d=>{const h=Math.max(14,(domTot[d.id]/total)*usable-gap);dPos[d.id]={y,h};y+=h+gap;});
+      // Role node positions
+      const rPos={};y=padY;
+      rls.forEach(r=>{const h=Math.max(14,(roleTot[r.id]/total)*usable-gap);rPos[r.id]={y,h};y+=h+gap;});
+      // Paths
+      const dOff={};BASE_DOMAINS.forEach(d=>dOff[d.id]=0);
+      const rOff={};rls.forEach(r=>rOff[r.id]=0);
+      let paths='',nodes='';
+      BASE_DOMAINS.forEach(d=>{
+        rls.forEach(r=>{
+          const cnt=fData[d.id][r.id];if(!cnt)return;
+          const h=(cnt/total)*usable;
+          const x0=190+nodeW,y0=dPos[d.id].y+dOff[d.id]+h/2;
+          const x1=350,y1=rPos[r.id].y+rOff[r.id]+h/2;
+          const mx=(x0+x1)/2;
+          paths+=`<path d="M${x0},${y0} C${mx},${y0} ${mx},${y1} ${x1},${y1}" stroke="${d.color}" stroke-width="${Math.max(2,h)}" fill="none" opacity="0.3"><title>${d.name} → ${r.label}: ${cnt}</title></path>`;
+          dOff[d.id]+=h;rOff[r.id]+=h;
+        });
+      });
+      BASE_DOMAINS.forEach(d=>{
+        const{y,h}=dPos[d.id];
+        nodes+=`<rect x="190" y="${y}" width="${nodeW}" height="${h}" fill="${d.color}" rx="2"/>`;
+        const nm=d.name.length>20?d.name.slice(0,18)+'…':d.name;
+        nodes+=`<text x="185" y="${(y+h/2).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="currentColor">${nm}</text>`;
+      });
+      rls.forEach(r=>{
+        const{y,h}=rPos[r.id];
+        nodes+=`<rect x="350" y="${y}" width="${nodeW}" height="${h}" fill="${roleColor[r.id]}" rx="2"/>`;
+        nodes+=`<text x="${350+nodeW+5}" y="${(y+h/2).toFixed(1)}" dominant-baseline="middle" font-size="11" font-weight="600" fill="${roleColor[r.id]}">${r.label}</text>`;
+      });
+      html+=`<div class="domain-header" style="color:var(--text);margin-bottom:6px">Responsibility flow</div>`;
+      html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Flow width = R or A assignments from each domain to each role.</p>`;
+      html+=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;color:var(--text);display:block;margin-bottom:28px">${paths}${nodes}</svg>`;
+    }
+  }
+
+  // ── BUBBLE MATRIX (flag: ?bubble) ────────────────────────
+  if(chartsShowBubble){
+    const LORDER=['A','R','C','I','NA'];
+    const LCOL={A:'#5DCAA5',R:'#85B7EB',C:'#F0997B',I:'#D3D1C7',NA:'#e8e8e8'};
+    let maxC=1;
+    BASE_DOMAINS.forEach(d=>rls.forEach(r=>{
+      const c=allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return!!value;}).length;
+      if(c>maxC)maxC=c;
+    }));
+    const cellSz=56,maxR=22,labelW=200;
+    const bW=labelW+rls.length*cellSz+20,bH=(BASE_DOMAINS.length+1)*cellSz;
+    let cells='';
+    rls.forEach((r,ci)=>{
+      cells+=`<text x="${labelW+ci*cellSz+cellSz/2}" y="${cellSz/2}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="600" fill="${roleColor[r.id]}">${r.label}</text>`;
+    });
+    BASE_DOMAINS.forEach((d,ri)=>{
+      const cy=(ri+1)*cellSz+cellSz/2;
+      const nm=d.name.length>24?d.name.slice(0,22)+'…':d.name;
+      cells+=`<text x="${labelW-6}" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="${d.color}">${nm}</text>`;
+      rls.forEach((r,ci)=>{
+        const cx=labelW+ci*cellSz+cellSz/2;
+        const rows=allRows(d.id);
+        const counts={A:0,R:0,C:0,I:0,NA:0};
+        rows.forEach(row=>{const{value}=consensusAnswer(r.id,row.id);if(!value)return;ltrs(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});});
+        const tot=Object.values(counts).reduce((a,b)=>a+b,0);if(!tot)return;
+        const dom=LORDER.find(l=>counts[l]===Math.max(...LORDER.map(x=>counts[x])))||'I';
+        const rad=Math.max(3,(Math.sqrt(tot)/Math.sqrt(maxC))*maxR);
+        cells+=`<circle cx="${cx}" cy="${cy}" r="${rad}" fill="${LCOL[dom]}" opacity="0.8"><title>${d.name} × ${r.label}: ${tot} assignments (dominant: ${dom})</title></circle>`;
+      });
+    });
+    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:6px">Involvement matrix</div>`;
+    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Circle size = total assignments in that domain. Colour = dominant letter.</p>`;
+    html+=`<div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">`;
+    LORDER.forEach(l=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:50%;background:${LCOL[l]};display:inline-block"></span>${l}</span>`);
+    html+=`</div>`;
+    html+=`<svg viewBox="0 0 ${bW} ${bH}" style="width:100%;max-width:${bW}px;height:auto;color:var(--text);display:block;margin-bottom:28px">${cells}</svg>`;
+  }
+
+  // ── COVERAGE DONUTS (flag: ?donuts) ──────────────────────
+  if(chartsShowDonuts){
+    const R=28,SW=10,CX=40,CY=40,SZ=82,CIRC=2*Math.PI*R;
+    const DCOLS=['#5DCAA5','#FAC775','#E24B4A','#d8d8d8'];
+    const DLBLS=['Full RAC','No I','RAC gap','None'];
+    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:6px">Coverage by domain</div>`;
+    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Share of activities with full coverage, I-only gap, RAC gap, or no answers yet.</p>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px">`;
+    BASE_DOMAINS.forEach(d=>{
+      const rows=allRows(d.id);
+      let full=0,noI=0,gap=0,none=0;
+      rows.forEach(row=>{
+        const cov=checkRACICoverage(row.id);
+        const hasAny=rls.some(r=>!!(consensusAnswer(r.id,row.id).value));
+        if(!hasAny)none++;else if(!cov.R||!cov.A||!cov.C)gap++;else if(!cov.I)noI++;else full++;
+      });
+      const tot=rows.length;
+      const segs=[full,noI,gap,none];
+      let arcs=`<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#ececec" stroke-width="${SW}"/>`;
+      let off=0;
+      segs.forEach((cnt,i)=>{
+        if(!cnt)return;
+        const dash=(cnt/tot)*CIRC,gp=CIRC-dash;
+        arcs+=`<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${DCOLS[i]}" stroke-width="${SW}" stroke-dasharray="${dash.toFixed(2)} ${gp.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${CX} ${CY})"><title>${DLBLS[i]}: ${cnt}/${tot}</title></circle>`;
+        off+=dash;
+      });
+      arcs+=`<text x="${CX}" y="${CY-4}" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">${tot}</text>`;
+      arcs+=`<text x="${CX}" y="${CY+9}" text-anchor="middle" font-size="8" fill="var(--text-muted)">total</text>`;
+      const nm=d.name.length>16?d.name.slice(0,14)+'…':d.name;
+      html+=`<div style="text-align:center"><svg width="${SZ}" height="${SZ}" style="display:block;color:var(--text)">${arcs}</svg><div style="font-size:10px;font-weight:600;color:${d.color};max-width:${SZ}px;line-height:1.3;margin-top:4px">${nm}</div></div>`;
+    });
+    html+=`</div><div style="display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap">`;
+    DLBLS.forEach((l,i)=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:50%;background:${DCOLS[i]};display:inline-block"></span>${l}</span>`);
+    html+=`</div>`;
+  }
+
+  // ── RESPONSIBILITY SCATTER (flag: ?scatter) ───────────────
+  if(chartsShowScatter){
+    const W=420,H=290,PL=42,PB=36,PT=18,PR=16;
+    const plotW=W-PL-PR,plotH=H-PT-PB;
+    const points=allRowsList.map((row,idx)=>{
+      let rc=0,ac=0;
+      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(!value||value==='NA')return;if(value.includes('R'))rc++;if(value.includes('A'))ac++;});
+      // deterministic jitter from row index
+      const jx=((idx*7+3)%11-5)*0.5,jy=((idx*13+7)%11-5)*0.5;
+      return{row,rc,ac,domain:row.domain,jx,jy};
+    });
+    const maxRC=Math.max(...points.map(p=>p.rc),3);
+    const maxAC=Math.max(...points.map(p=>p.ac),3);
+    let grid='';
+    for(let i=0;i<=maxRC;i++){const x=PL+(i/maxRC)*plotW;grid+=`<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+plotH}" stroke="var(--border-light)" stroke-width=".5"/><text x="${x}" y="${PT+plotH+14}" text-anchor="middle" font-size="9" fill="var(--text-hint)">${i}</text>`;}
+    for(let i=0;i<=maxAC;i++){const y=PT+plotH-(i/maxAC)*plotH;grid+=`<line x1="${PL}" y1="${y}" x2="${PL+plotW}" y2="${y}" stroke="var(--border-light)" stroke-width=".5"/><text x="${PL-5}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="var(--text-hint)">${i}</text>`;}
+    // ideal line at A=1
+    const idealY=PT+plotH-(1/maxAC)*plotH;
+    grid+=`<line x1="${PL}" y1="${idealY}" x2="${PL+plotW}" y2="${idealY}" stroke="#5DCAA5" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/><text x="${PL+plotW}" y="${idealY-4}" text-anchor="end" font-size="8" fill="#5DCAA5">A = 1 (ideal)</text>`;
+    let dots='';
+    points.forEach(p=>{
+      const x=PL+(p.rc/maxRC)*plotW+p.jx,y=PT+plotH-(p.ac/maxAC)*plotH+p.jy;
+      dots+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="${p.domain.color}" opacity="0.65"><title>${p.row.a}\nR: ${p.rc} roles · A: ${p.ac} roles</title></circle>`;
+    });
+    const axes=`<text x="${PL+plotW/2}" y="${H-1}" text-anchor="middle" font-size="10" fill="var(--text-muted)">Roles with R →</text><text x="9" y="${PT+plotH/2}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="var(--text-muted)" transform="rotate(-90 9 ${PT+plotH/2})">Roles with A →</text>`;
+    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:6px">Responsibility spread</div>`;
+    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Each dot = one activity. x = roles sharing R, y = roles holding A (green line = ideal single A). Colour = domain.</p>`;
+    html+=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;display:block;margin-bottom:10px;color:var(--text)">${grid}${dots}${axes}</svg>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px">`;
+    BASE_DOMAINS.forEach(d=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name}</span>`);
+    html+=`</div>`;
+  }
+
+  // ── ROLE RADAR (flag: ?radar) ─────────────────────────────
+  if(chartsShowRadar){
+    const SZ=320,CX=160,CY=170,MAXR=100;
+    const doms=BASE_DOMAINS;const N=doms.length;
+    const step=(2*Math.PI)/N;
+    function pt(angle,r){return{x:CX+r*Math.sin(angle),y:CY-r*Math.cos(angle)};}
+    const maxVal=Math.max(1,...rls.map(r=>Math.max(...doms.map(d=>allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&value.includes('A');}).length))));
+    // Grid rings
+    let grid='';
+    [0.25,0.5,0.75,1].forEach(f=>{
+      const pts=doms.map((_,i)=>{const{x,y}=pt(i*step,f*MAXR);return`${x.toFixed(1)},${y.toFixed(1)}`;}).join(' ');
+      grid+=`<polygon points="${pts}" fill="none" stroke="var(--border-light)" stroke-width=".5"/>`;
+    });
+    doms.forEach((d,i)=>{
+      const{x:x1,y:y1}=pt(i*step,MAXR);
+      grid+=`<line x1="${CX}" y1="${CY}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--border-light)" stroke-width=".5"/>`;
+      const{x:lx,y:ly}=pt(i*step,MAXR+22);
+      const nm=d.name.split(' ')[0];
+      grid+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="600" fill="${d.color}">${nm}</text>`;
+    });
+    // Role polygons
+    let polys='';
+    rls.forEach(r=>{
+      const pts=doms.map((d,i)=>{
+        const cnt=allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&value.includes('A');}).length;
+        const{x,y}=pt(i*step,(cnt/maxVal)*MAXR);
+        return`${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      polys+=`<polygon points="${pts}" fill="${roleColor[r.id]}" fill-opacity="0.15" stroke="${roleColor[r.id]}" stroke-width="1.5" stroke-linejoin="round"><title>${r.label}: ${r.full}</title></polygon>`;
+    });
+    // Legend
+    let legend='';
+    rls.forEach((r,i)=>{legend+=`<g transform="translate(0,${i*18})"><rect width="10" height="10" fill="${roleColor[r.id]}" rx="2"/><text x="14" y="9" font-size="10" fill="currentColor">${r.label} — ${r.full}</text></g>`;});
+    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:6px">Role fingerprint</div>`;
+    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">A-count per domain per role. Larger area = more accountability in that domain.</p>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:24px;margin-bottom:28px;align-items:flex-start">`;
+    html+=`<svg viewBox="0 0 ${SZ} ${SZ}" style="width:${SZ}px;max-width:100%;height:auto;color:var(--text)">${grid}${polys}</svg>`;
+    html+=`<svg viewBox="0 0 210 ${rls.length*18+4}" style="width:210px;height:auto;color:var(--text)">${legend}</svg>`;
     html+=`</div>`;
   }
 
@@ -1236,7 +1407,13 @@ function exportAgreedCSV(){
 
 // ==================== EXPORT NUDGE ====================
 let nudgeDismissed=false;
-const chartsShowWorkload=new URLSearchParams(location.search).has('workload');
+const _qs=new URLSearchParams(location.search);
+const chartsShowWorkload=_qs.has('workload');
+const chartsShowFlow=_qs.has('flow');
+const chartsShowBubble=_qs.has('bubble');
+const chartsShowDonuts=_qs.has('donuts');
+const chartsShowScatter=_qs.has('scatter');
+const chartsShowRadar=_qs.has('radar');
 let nudgeTimer=null;
 
 function maybeShowExportNudge(){
