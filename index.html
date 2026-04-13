@@ -686,7 +686,8 @@ function renderActionBtns(){
   const el=document.getElementById("actionBtns");
   if(currentView==="assign") el.innerHTML=`<button class="btn btn-sm" onclick="importMyAnswers()">Import answers</button> <button class="btn btn-sm" onclick="exportMyAnswers()">Export answers</button> <button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear role</button>`;
   else if(currentView==="compare") el.innerHTML=`<button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>`;
-  else if(currentView==="matrix") el.innerHTML=`<button class="btn btn-sm" onclick="exportAgreedCSV()">Export CSV</button>`;
+  else if(currentView==="matrix") el.innerHTML=`<button class="btn btn-sm" onclick="exportAgreedCSV()">Export CSV</button> <button class="btn btn-sm" onclick="exportPDF()">Export PDF</button>`;
+  else if(currentView==="charts") el.innerHTML=`<button class="btn btn-sm" onclick="exportPDF()">Export PDF</button>`;
   else el.innerHTML="";
 }
 function renderChipTray(){
@@ -780,8 +781,8 @@ function renderChartsView(container){
   const roleColor={};
   rls.forEach((r,i)=>roleColor[r.id]=PALETTE[i%PALETTE.length]);
 
-  // Classify a consensus value into one bucket (R > A > C > I > NA)
-  function primary(v){if(!v)return'none';if(v==='NA')return'NA';if(v.includes('R'))return'R';if(v.includes('A'))return'A';if(v.includes('C'))return'C';return'I';}
+  // Split a consensus value into its individual letters
+  function letters(v){if(!v)return[];if(v==='NA')return['NA'];return v.split(',').map(x=>x.trim()).filter(Boolean);}
 
   const allRowsList=[];
   BASE_DOMAINS.forEach(d=>allRows(d.id).forEach(r=>allRowsList.push({...r,domain:d})));
@@ -816,7 +817,7 @@ function renderChartsView(container){
 
   // ── STACKED BAR ──────────────────────────────────────────
   html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Workload per role</div>`;
-  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Consensus assignment per activity, each activity counted once using its primary letter.</p>`;
+  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Letter occurrences per role across all activities. A,R counts as both A and R.</p>`;
 
   const SEGS=[
     {key:'R',bg:'#85B7EB',fg:'#0C447C'},
@@ -836,7 +837,12 @@ function renderChartsView(container){
   html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
   rls.forEach(r=>{
     const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
-    allRowsList.forEach(row=>{const{value}=consensusAnswer(r.id,row.id);counts[primary(value)]++;});
+    allRowsList.forEach(row=>{
+      const{value}=consensusAnswer(r.id,row.id);
+      if(!value){counts.none++;return;}
+      letters(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});
+    });
+    const assigned=total-counts.none;
     html+=`<div style="display:flex;align-items:center;gap:10px">`;
     html+=`<div style="width:36px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0" title="${r.full}">${r.label}</div>`;
     html+=`<div style="flex:1;display:flex;border-radius:4px;overflow:hidden;height:30px;border:.5px solid var(--border-light)">`;
@@ -848,7 +854,7 @@ function renderChartsView(container){
       html+=`<div title="Unassigned: ${counts.none}" style="flex:${counts.none};background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-hint)">${counts.none}</div>`;
     }
     html+=`</div>`;
-    html+=`<div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${total - counts.none}/${total}</div>`;
+    html+=`<div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${assigned}/${total}</div>`;
     html+=`</div>`;
   });
   html+=`</div>`;
@@ -1015,6 +1021,166 @@ function renderCardsView(container){
   });
   html+=`</div>`;
   container.innerHTML=html;
+}
+
+function exportPDF(){
+  const rls=effectiveRoles();
+  const allRowsList=[];
+  BASE_DOMAINS.forEach(d=>allRows(d.id).forEach(r=>allRowsList.push({...r,domain:d})));
+  const total=allRowsList.length;
+
+  function chip(v){
+    if(!v)return`<span style="color:#aaa">—</span>`;
+    const bg=v==='NA'?'#f0f0f0':v.includes('R')&&v.includes('A')?'#E6F1FB':v.includes('A')?'#E1F5EE':v.includes('R')?'#E6F1FB':v.includes('C')?'#FAECE7':'#F1EFE8';
+    const fg=v==='NA'?'#888':v.includes('R')&&v.includes('A')?'#0C447C':v.includes('A')?'#085041':v.includes('R')?'#0C447C':v.includes('C')?'#712B13':'#6E6D68';
+    const border=v==='NA'?'#ddd':v.includes('R')&&v.includes('A')?'#85B7EB':v.includes('A')?'#5DCAA5':v.includes('R')?'#85B7EB':v.includes('C')?'#F0997B':'#D3D1C7';
+    return`<span style="display:inline-block;background:${bg};color:${fg};border:1px solid ${border};border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;font-family:monospace">${v}</span>`;
+  }
+  function pdfLetters(v){if(!v)return[];if(v==='NA')return['NA'];return v.split(',').map(x=>x.trim()).filter(Boolean);}
+
+  const PALETTE=['#3B7DD8','#2D9E7A','#D4732A','#8B4EC4','#C4395E','#1E9AB0','#C49E2A','#5D8A3C'];
+  const roleColor={};rls.forEach((r,i)=>roleColor[r.id]=PALETTE[i%PALETTE.length]);
+
+  const SEGS=[{key:'R',bg:'#85B7EB',fg:'#0C447C'},{key:'A',bg:'#5DCAA5',fg:'#085041'},{key:'C',bg:'#F0997B',fg:'#712B13'},{key:'I',bg:'#D3D1C7',fg:'#4A4A46'},{key:'NA',bg:'#e8e8e8',fg:'#888'}];
+
+  // ── RACI Matrix section ───────���───────────────────────────────
+  let matrixRows='';
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    matrixRows+=`<tr><td colspan="${rls.length+2}" style="background:${d.color}12;color:${d.color};font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:2px solid ${d.color}40">${d.name}</td></tr>`;
+    rows.forEach((row,i)=>{
+      const cov=checkRACICoverage(row.id);
+      const racGap=!cov.R||!cov.A||!cov.C;
+      const iWarn=!racGap&&!cov.I;
+      const rowBg=racGap?'#fff5f5':iWarn?'#fffbf0':i%2===0?'#fff':'#fafafa';
+      const flag=racGap?`<span style="color:#c0392b;font-size:10px" title="Missing R/A/C">⚠</span>`:iWarn?`<span style="color:#e67e22;font-size:10px" title="No I">ℹ</span>`:'';
+      matrixRows+=`<tr style="background:${rowBg}"><td style="padding:5px 10px;font-size:11px;color:#222;max-width:240px">${row.a}${row.custom?' <span style="font-size:9px;background:#f0f0f0;padding:1px 4px;border-radius:3px;color:#777">custom</span>':''} ${flag}</td>`;
+      rls.forEach(r=>{
+        const{value,pct}=consensusAnswer(r.id,row.id);
+        const pctStr=value&&pct<100?`<span style="font-size:9px;color:#999;display:block">${pct}%</span>`:'';
+        matrixRows+=`<td style="text-align:center;padding:5px 6px">${chip(value)}${pctStr}</td>`;
+      });
+      matrixRows+=`<td style="text-align:center;padding:5px 4px"><span style="display:inline-flex;gap:2px">`;
+      ['R','A','C','I'].forEach(l=>{
+        const ok=cov[l];
+        const isI=l==='I';
+        const bg=ok?'#E1F5EE':isI?'#FAEEDA':'#FDECEA';
+        const fg=ok?'#085041':isI?'#854F0B':'#A32D2D';
+        matrixRows+=`<span style="background:${bg};color:${fg};font-size:9px;font-weight:700;width:14px;height:14px;border-radius:2px;display:inline-flex;align-items:center;justify-content:center">${l}</span>`;
+      });
+      matrixRows+=`</span></td></tr>`;
+    });
+  });
+
+  // ── Workload bar section ──────────────────────────────────────
+  let barRows='';
+  rls.forEach(r=>{
+    const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
+    allRowsList.forEach(row=>{const{value}=consensusAnswer(r.id,row.id);if(!value){counts.none++;return;}pdfLetters(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});});
+    const answered=total-counts.none;
+    let segs='';
+    SEGS.forEach(s=>{
+      const c=counts[s.key];if(!c)return;
+      const w=(c/total*100).toFixed(1);
+      segs+=`<div style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${s.fg};min-width:${c>0?'16px':'0'}">${c}</div>`;
+    });
+    if(counts.none)segs+=`<div style="flex:${counts.none};background:#f8f8f8;display:flex;align-items:center;justify-content:center;font-size:9px;color:#ccc">${counts.none}</div>`;
+    barRows+=`<tr>
+      <td style="text-align:right;padding:4px 8px 4px 0;font-size:11px;font-weight:700;white-space:nowrap;width:40px">${r.label}</td>
+      <td style="padding:4px 0"><div style="display:flex;height:24px;border-radius:3px;overflow:hidden;border:1px solid #e8e8e8">${segs}</div></td>
+      <td style="padding:4px 0 4px 8px;font-size:10px;color:#888;white-space:nowrap;width:60px">${answered}/${total}</td>
+    </tr>`;
+  });
+
+  // ── Accountability treemap ────────────────────────────────────
+  let treemap='';
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    let cells='';
+    rows.forEach(row=>{
+      let aRoleId=null;
+      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(value&&value.includes('A'))aRoleId=r.id;});
+      const bg=aRoleId?roleColor[aRoleId]:'#e8e8e8';
+      const aLabel=aRoleId?(rls.find(r=>r.id===aRoleId)||{label:'?'}).label:'—';
+      cells+=`<span title="${row.a} · A: ${aLabel}" style="display:inline-block;width:14px;height:14px;border-radius:2px;background:${bg};opacity:0.85;margin:1px"></span>`;
+    });
+    treemap+=`<div style="display:inline-block;vertical-align:top;margin:0 8px 10px 0;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:7px 8px;max-width:160px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${d.color};margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div>
+      <div>${cells}</div>
+    </div>`;
+  });
+
+  const dateStr=new Date().toLocaleDateString('en-NZ',{year:'numeric',month:'long',day:'numeric'});
+  const participantNames=Object.keys(participants).sort().join(', ')||'—';
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RACI Matrix — ${roomId}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    @page{size:A4 landscape;margin:12mm 14mm}
+    body{font-family:system-ui,-apple-system,sans-serif;font-size:11px;color:#1a1a1a;background:#fff}
+    h1{font-size:18px;font-weight:700;color:#111;margin-bottom:2px}
+    h2{font-size:12px;font-weight:700;color:#333;margin:20px 0 8px;padding-bottom:4px;border-bottom:1.5px solid #eee;text-transform:uppercase;letter-spacing:.5px}
+    table{width:100%;border-collapse:collapse}
+    th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#666;padding:6px 6px;text-align:center;border-bottom:2px solid #eee;background:#fafafa;position:sticky;top:0}
+    th:first-child{text-align:left}
+    td{border-bottom:.5px solid #f0f0f0;vertical-align:middle}
+    .legend-item{display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:12px}
+    .legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #eee">
+    <div>
+      <h1>RACI Matrix</h1>
+      <div style="font-size:11px;color:#666;margin-top:3px">Room: <strong>${roomId}</strong> &nbsp;·&nbsp; ${dateStr} &nbsp;·&nbsp; ${Object.keys(participants).length} participant${Object.keys(participants).length!==1?'s':''}</div>
+      <div style="font-size:10px;color:#999;margin-top:2px">${participantNames}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:10px;color:#666;margin-bottom:6px">Roles</div>
+      ${rls.map(r=>`<div style="font-size:10px;margin-bottom:2px"><strong style="font-family:monospace">${r.label}</strong> ${r.full}</div>`).join('')}
+    </div>
+  </div>
+
+  <div style="margin-bottom:12px">
+    <span style="font-size:10px;color:#666;margin-right:8px">Key:</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#E6F1FB;border:1px solid #85B7EB"></span>R Responsible</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#E1F5EE;border:1px solid #5DCAA5"></span>A Accountable</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#FAECE7;border:1px solid #F0997B"></span>C Consulted</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#F1EFE8;border:1px solid #D3D1C7"></span>I Informed</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#f0f0f0;border:1px solid #ddd"></span>NA Not applicable</span>
+    <span style="font-size:10px;color:#666;margin-left:16px">% = participant agreement &nbsp;·&nbsp; ⚠ missing R/A/C &nbsp;·&nbsp; ℹ no I</span>
+  </div>
+
+  <h2>Consensus RACI Matrix</h2>
+  <table>
+    <thead><tr>
+      <th style="min-width:200px">Activity</th>
+      ${rls.map(r=>`<th title="${r.full}">${r.label}</th>`).join('')}
+      <th>Coverage</th>
+    </tr></thead>
+    <tbody>${matrixRows}</tbody>
+  </table>
+
+  <div style="page-break-before:always"></div>
+
+  <h2>Accountability Map <span style="font-size:9px;font-weight:400;color:#999;text-transform:none;letter-spacing:0">— each cell = one activity, coloured by who holds A</span></h2>
+  <div style="margin-bottom:8px">
+    ${rls.map(r=>`<span class="legend-item"><span class="legend-dot" style="background:${roleColor[r.id]}"></span>${r.label}</span>`).join('')}
+    <span class="legend-item"><span class="legend-dot" style="background:#e8e8e8;border:1px solid #ddd"></span>None</span>
+  </div>
+  <div style="margin-bottom:24px">${treemap}</div>
+
+  <h2>Workload per Role <span style="font-size:9px;font-weight:400;color:#999;text-transform:none;letter-spacing:0">— letter occurrences per role (A,R counts as both)</span></h2>
+  <div style="margin-bottom:8px">
+    ${SEGS.map(s=>`<span class="legend-item"><span class="legend-dot" style="background:${s.bg}"></span>${s.key}</span>`).join('')}
+  </div>
+  <table style="width:auto;min-width:400px"><tbody>${barRows}</tbody></table>
+
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
 }
 
 function exportMyAnswers(){
