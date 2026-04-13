@@ -815,13 +815,9 @@ function renderChartsView(container){
   });
   html+=`</div>`;
 
-  // ── STACKED BAR ──────────────────────────────────────────
-  html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <div class="domain-header" style="color:var(--text);margin:0">Workload per role</div>
-    <button class="btn btn-sm" style="font-size:11px;padding:2px 10px" onclick="chartsShowWorkload=!chartsShowWorkload;renderAll()">${chartsShowWorkload?'Hide':'Show'}</button>
-  </div>`;
-
+  // ── STACKED BAR (flag: ?workload) ────────────────────────
   if(chartsShowWorkload){
+    html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Workload per role</div>`;
     html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Letter occurrences per role across all activities. A,R counts as both A and R.</p>`;
 
     const SEGS=[
@@ -1240,7 +1236,7 @@ function exportAgreedCSV(){
 
 // ==================== EXPORT NUDGE ====================
 let nudgeDismissed=false;
-let chartsShowWorkload=false;
+const chartsShowWorkload=new URLSearchParams(location.search).has('workload');
 let nudgeTimer=null;
 
 function maybeShowExportNudge(){
