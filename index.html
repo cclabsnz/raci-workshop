@@ -199,9 +199,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .cov-badge{font-family:var(--mono);font-size:9px;font-weight:700;width:16px;height:15px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center}
 .cov-ok{background:var(--correct-bg);color:var(--a-text)}
 .cov-miss{background:var(--incorrect-bg);color:#A32D2D}
+.cov-warn{background:var(--partial-bg);color:#854F0B}
 .cov-na{background:var(--surface-alt);color:var(--text-hint)}
 .matrix-row-gap{background:rgba(220,60,60,0.04)}
-.coverage-banner{background:var(--incorrect-bg);border:1px solid var(--incorrect-border);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:#A32D2D;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.matrix-row-warn{background:rgba(250,199,117,0.12)}
+.coverage-banner{border-radius:var(--radius);padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.coverage-banner-error{background:var(--incorrect-bg);border:1px solid var(--incorrect-border);color:#A32D2D}
+.coverage-banner-warn{background:var(--partial-bg);border:1px solid var(--partial-border);color:#854F0B}
 .coverage-banner strong{font-weight:600}
 
 /* Cards view */
@@ -844,17 +848,17 @@ function renderMatrixView(container){
   const names=Object.keys(participants);
   if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
   // Collect all rows for coverage banner count
-  let gapCount=0;
+  let gapCount=0,warnCount=0;
   const allRowsList=[];
   BASE_DOMAINS.forEach(d=>allRows(d.id).forEach(r=>allRowsList.push(r)));
   allRowsList.forEach(row=>{
     const cov=checkRACICoverage(row.id);
-    if(!cov.R||!cov.A||!cov.C||!cov.I)gapCount++;
+    if(!cov.R||!cov.A||!cov.C)gapCount++;
+    else if(!cov.I)warnCount++;
   });
   let html="";
-  if(gapCount>0){
-    html+=`<div class="coverage-banner">⚠ ${gapCount} activit${gapCount===1?"y":"ies"} missing full RACI coverage — look for highlighted rows below.</div>`;
-  }
+  if(gapCount>0)html+=`<div class="coverage-banner coverage-banner-error">⚠ ${gapCount} activit${gapCount===1?"y":"ies"} missing R, A, or C — look for highlighted rows below.</div>`;
+  if(warnCount>0)html+=`<div class="coverage-banner coverage-banner-warn">ℹ ${warnCount} activit${warnCount===1?"y":"ies"} have no I assigned.</div>`;
   html+=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Showing consensus answer per role. Percentage reflects agreement across all participants.</p>`;
   html+=`<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th>Activity</th>`;
   effectiveRoles().forEach(r=>html+=`<th title="${r.full}">${r.label}</th>`);
@@ -864,9 +868,10 @@ function renderMatrixView(container){
     html+=`<tr class="domain-row"><td colspan="${effectiveRoles().length+2}" style="color:${d.color}">${d.name}</td></tr>`;
     rows.forEach(row=>{
       const cov=checkRACICoverage(row.id);
-      const hasGap=!cov.R||!cov.A||!cov.C||!cov.I;
+      const hasGap=!cov.R||!cov.A||!cov.C;
+      const hasWarn=!hasGap&&!cov.I;
       const label=row.custom?`${row.a} <span class="custom-badge">custom</span>`:row.a;
-      html+=`<tr class="${hasGap?"matrix-row-gap":""}"><td>${label}</td>`;
+      html+=`<tr class="${hasGap?"matrix-row-gap":hasWarn?"matrix-row-warn":""}"><td>${label}</td>`;
       effectiveRoles().forEach(r=>{
         const{value,pct}=consensusAnswer(r.id,row.id);
         if(!value){html+=`<td><span style="color:var(--text-hint)">—</span></td>`;return;}
@@ -880,6 +885,7 @@ function renderMatrixView(container){
       html+=`<td><div class="matrix-cell" style="gap:2px">`;
       ["R","A","C","I"].forEach(letter=>{
         if(cov[letter])html+=`<span class="cov-badge cov-ok">${letter}</span>`;
+        else if(letter==="I")html+=`<span class="cov-badge cov-warn">${letter}</span>`;
         else html+=`<span class="cov-badge cov-miss">${letter}</span>`;
       });
       html+=`</div></td>`;
