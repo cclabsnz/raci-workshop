@@ -234,7 +234,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
         <div class="step"><div class="step-num">01</div><h3>Create a room</h3><p>Get a 6-character room code instantly — no account needed.</p></div>
         <div class="step"><div class="step-num">02</div><h3>Share the link</h3><p>Send the URL to your team. Anyone with the link can join.</p></div>
         <div class="step"><div class="step-num">03</div><h3>Assign RACI</h3><p>Each person assigns R/A/C/I values per role and activity independently.</p></div>
-        <div class="step"><div class="step-num">04</div><h3>Compare &amp; align</h3><p>See everyone's answers side-by-side with consensus scores and a heatmap overview.</p></div>
+        <div class="step"><div class="step-num">04</div><h3>Compare &amp; align</h3><p>See everyone's answers side-by-side and identify where people agree or diverge.</p></div>
       </div>
     </div>
 
@@ -663,7 +663,7 @@ function renderParticipants(){
 }
 
 function renderViewTabs(){
-  const VIEWS=[["assign","Assign"],["compare","Compare"],["heatmap","Heatmap"],["matrix","Matrix"],["cards","Cards"]];
+  const VIEWS=[["assign","Assign"],["compare","Compare"],["matrix","Matrix"],["cards","Cards"]];
   document.getElementById("viewTabs").innerHTML=VIEWS.map(([v,label])=>
     `<button class="tab-btn ${currentView===v?'active':''}" onclick="setView('${v}')">${label}</button>`
   ).join("");
@@ -706,7 +706,7 @@ function renderMainContent(){
   else if(currentView==="compare")renderCompareView(el);
   else if(currentView==="matrix")renderMatrixView(el);
   else if(currentView==="cards")renderCardsView(el);
-  else renderHeatmapView(el);
+  else renderCompareView(el);
 }
 
 // ==================== ASSIGN VIEW ====================
@@ -737,27 +737,25 @@ function renderAssignView(container){
 function renderCompareView(container){
   const names=Object.keys(participants).sort();
   if(names.length<1){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants...</p>`;return;}
-  let html=`<div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Activity</th><th>Ref</th>`;
+  let html=`<div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Activity</th>`;
   names.forEach(n=>html+=`<th><div style="font-size:11px;line-height:1.3;max-width:80px"><span class="participant-dot" style="background:${participants[n].color};display:inline-block;margin-right:3px"></span>${n}${n===myName?' (you)':''}</div></th>`);
   html+=`<th>Agree</th></tr></thead><tbody>`;
   BASE_DOMAINS.forEach(d=>{
     const rows=allRows(d.id);
-    html+=`<tr class="domain-row"><td colspan="${names.length+3}" style="color:${d.color}">${d.name}</td></tr>`;
+    html+=`<tr class="domain-row"><td colspan="${names.length+2}" style="color:${d.color}">${d.name}</td></tr>`;
     rows.forEach(row=>{
-      const correct=row.ans?row.ans[currentRole]:null;
       const label=row.custom?`${row.a} <span class="custom-badge">custom</span>`:row.a;
-      html+=`<tr><td>${label}</td><td>${correct?`<span class="cell-mini ${chipCls(correct)}">${correct}</span>`:'—'}</td>`;
-      let mc=0;
+      const allVals=names.map(n=>(participants[n].answers||{})[currentRole+":"+row.id]||"").filter(Boolean);
+      let plurality=null;
+      if(allVals.length){const f={};allVals.forEach(v=>{const k=norm(v);f[k]=(f[k]||0)+1});const mc=Math.max(...Object.values(f));plurality=Object.keys(f).find(k=>f[k]===mc);}
+      const pct=names.length>0&&plurality?Math.round(allVals.filter(v=>norm(v)===plurality).length/names.length*100):0;
+      html+=`<tr><td>${label}</td>`;
       names.forEach(n=>{
         const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";
-        const match=correct&&v&&norm(v)===norm(correct);
-        if(match)mc++;
-        const partial=correct&&v&&isPartial(v,correct)&&!match;
-        html+=`<td><span class="cell-mini ${chipCls(v||'—')} ${match?'cell-match':v?(partial?'':'cell-mismatch'):''}">${v||'—'}</span></td>`;
+        const agree=names.length>1&&plurality&&v&&norm(v)===plurality;
+        const disagree=names.length>1&&v&&!agree;
+        html+=`<td><span class="cell-mini ${chipCls(v||'—')} ${agree?'cell-match':disagree?'cell-mismatch':''}">${v||'—'}</span></td>`;
       });
-      let pct;
-      if(correct){pct=names.length>0?Math.round(mc/names.length*100):0;}
-      else{const vals=names.map(n=>(participants[n].answers||{})[currentRole+":"+row.id]||"").filter(Boolean);if(!vals.length)pct=0;else{const f={};vals.forEach(v=>{const k=norm(v);f[k]=(f[k]||0)+1});pct=Math.round(Math.max(...Object.values(f))/names.length*100);}}
       html+=`<td><span class="consensus-badge ${pct===100?'consensus-full':pct>=50?'consensus-partial':'consensus-none'}">${pct}%</span></td></tr>`;
     });
   });
@@ -765,58 +763,6 @@ function renderCompareView(container){
   container.innerHTML=html;
 }
 
-// ==================== HEATMAP VIEW ====================
-function renderHeatmapView(container){
-  const names=Object.keys(participants).sort();
-  if(!names.length){container.innerHTML="";return;}
-  let html=`<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Green = matches reference, yellow = partial, red = mismatch, gray = unanswered, blue = custom (no ref).</p>`;
-  BASE_DOMAINS.forEach(d=>{
-    const rows=allRows(d.id);
-    html+=`<div style="margin-bottom:20px"><div class="domain-header" style="color:${d.color}">${d.name}</div>`;
-    html+=`<div style="display:grid;grid-template-columns:minmax(120px,200px) repeat(${names.length},1fr);gap:2px;align-items:center;margin-bottom:4px"><div></div>`;
-    names.forEach(n=>html+=`<div style="font-size:10px;color:var(--text-hint);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n===myName?'You':n}</div>`);
-    html+=`</div>`;
-    rows.forEach(row=>{
-      const correct=row.ans?row.ans[currentRole]:null;
-      html+=`<div style="display:grid;grid-template-columns:minmax(120px,200px) repeat(${names.length},1fr);gap:2px;align-items:center;margin-bottom:2px">`;
-      html+=`<div class="heatmap-label" title="${row.a}">${row.a}${row.custom?' *':''}</div>`;
-      names.forEach(n=>{
-        const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";
-        let bg,fg;
-        if(!v){bg="var(--surface-alt)";fg="var(--text-hint)";}
-        else if(v==="NA"){bg="var(--border-light)";fg="var(--text-hint)";}
-        else if(!correct){bg="var(--accent-light)";fg="var(--accent)";}
-        else if(norm(v)===norm(correct)){bg="var(--correct-bg)";fg="var(--a-text)";}
-        else if(isPartial(v,correct)){bg="var(--partial-bg)";fg="#854F0B";}
-        else{bg="var(--incorrect-bg)";fg="#A32D2D";}
-        html+=`<div class="heatmap-cell" style="background:${bg};color:${fg}" title="${n}: ${v||'—'}${correct?' (ref: '+correct+')':' (custom)'}">${v||'—'}</div>`;
-      });
-      html+=`</div>`;
-    });
-    html+=`</div>`;
-  });
-  // Summary cards
-  html+=`<div style="margin-top:24px"><div class="domain-header" style="color:var(--text)">Accuracy — ${(effectiveRoles().find(r=>r.id===currentRole)||{full:currentRole}).full}</div>`;
-  html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">`;
-  names.forEach(n=>{
-    let correct=0,answered=0;
-    BASE_DOMAINS.forEach(d=>{d.rows.forEach(row=>{
-      const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";
-      if(v)answered++;
-      if(v&&norm(v)===norm(row.ans[currentRole]))correct++;
-    })});
-    const pct=answered>0?Math.round(correct/BASE_TOTAL*100):0;
-    const barColor=pct>=80?"var(--a-text)":pct>=50?"#BA7517":"#E24B4A";
-    html+=`<div style="background:var(--surface);border:.5px solid var(--border-light);border-radius:var(--radius-lg);padding:14px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span class="participant-dot" style="background:${participants[n].color}"></span><span style="font-size:13px;font-weight:500">${n}${n===myName?' (you)':''}</span></div>
-      <div style="font-family:var(--mono);font-size:22px;font-weight:600;margin-bottom:4px">${pct}%</div>
-      <div style="height:4px;border-radius:2px;background:var(--border-light);overflow:hidden"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px"></div></div>
-      <div style="font-size:11px;color:var(--text-hint);margin-top:4px">${correct}/${BASE_TOTAL} correct · ${answered} answered</div>
-    </div>`;
-  });
-  html+=`</div></div>`;
-  container.innerHTML=html;
-}
 
 // ==================== ACTIONS ====================
 function setView(v){currentView=v;renderAll();}
@@ -857,12 +803,13 @@ function onDrop(e,key){
 
 function exportCSV(){
   const names=Object.keys(participants).sort();
-  let csv="Domain,Activity,Type,Reference";names.forEach(n=>csv+=","+n);csv+=",Consensus%\n";
+  let csv="Domain,Activity,Type";names.forEach(n=>csv+=","+n);csv+=",Agree%\n";
   BASE_DOMAINS.forEach(d=>{allRows(d.id).forEach(row=>{
-    const c=row.ans?row.ans[currentRole]:"";
-    csv+=`"${d.name}","${row.a}","${row.custom?'Custom':'Base'}","${c}"`;
-    let mc=0;names.forEach(n=>{const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";if(c&&v&&norm(v)===norm(c))mc++;csv+=`,"${v}"`;});
-    csv+=`,${c&&names.length?Math.round(mc/names.length*100):0}%\n`;
+    csv+=`"${d.name}","${row.a}","${row.custom?'Custom':'Base'}"`;
+    const vals=[];names.forEach(n=>{const v=(participants[n].answers||{})[currentRole+":"+row.id]||"";vals.push(v);csv+=`,"${v}"`;});
+    const filled=vals.filter(Boolean);let pct=0;
+    if(filled.length){const f={};filled.forEach(v=>{const k=norm(v);f[k]=(f[k]||0)+1});pct=Math.round(Math.max(...Object.values(f))/names.length*100);}
+    csv+=`,${pct}%\n`;
   })});
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`raci-${roomId}-${currentRole}.csv`;a.click();
 }
