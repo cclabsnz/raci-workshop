@@ -816,48 +816,53 @@ function renderChartsView(container){
   html+=`</div>`;
 
   // ── STACKED BAR ──────────────────────────────────────────
-  html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Workload per role</div>`;
-  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Letter occurrences per role across all activities. A,R counts as both A and R.</p>`;
+  html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div class="domain-header" style="color:var(--text);margin:0">Workload per role</div>
+    <button class="btn btn-sm" style="font-size:11px;padding:2px 10px" onclick="chartsShowWorkload=!chartsShowWorkload;renderAll()">${chartsShowWorkload?'Hide':'Show'}</button>
+  </div>`;
 
-  const SEGS=[
-    {key:'R',bg:'#85B7EB',fg:'#0C447C'},
-    {key:'A',bg:'#5DCAA5',fg:'#085041'},
-    {key:'C',bg:'#F0997B',fg:'#712B13'},
-    {key:'I',bg:'#D3D1C7',fg:'#4A4A46'},
-    {key:'NA',bg:'var(--border-light)',fg:'var(--text-hint)'},
-  ];
-  const total=allRowsList.length;
+  if(chartsShowWorkload){
+    html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Letter occurrences per role across all activities. A,R counts as both A and R.</p>`;
 
-  // Legend
-  html+=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">`;
-  SEGS.forEach(s=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:${s.bg};display:inline-block"></span>${s.key}</span>`);
-  html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg);border:.5px solid var(--border);display:inline-block"></span>—</span>`;
-  html+=`</div>`;
+    const SEGS=[
+      {key:'R',bg:'#85B7EB',fg:'#0C447C'},
+      {key:'A',bg:'#5DCAA5',fg:'#085041'},
+      {key:'C',bg:'#F0997B',fg:'#712B13'},
+      {key:'I',bg:'#D3D1C7',fg:'#4A4A46'},
+      {key:'NA',bg:'var(--border-light)',fg:'var(--text-hint)'},
+    ];
+    const total=allRowsList.length;
 
-  html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
-  rls.forEach(r=>{
-    const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
-    allRowsList.forEach(row=>{
-      const{value}=consensusAnswer(r.id,row.id);
-      if(!value){counts.none++;return;}
-      letters(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});
-    });
-    const assigned=total-counts.none;
-    html+=`<div style="display:flex;align-items:center;gap:10px">`;
-    html+=`<div style="width:36px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0" title="${r.full}">${r.label}</div>`;
-    html+=`<div style="flex:1;display:flex;border-radius:4px;overflow:hidden;height:30px;border:.5px solid var(--border-light)">`;
-    SEGS.forEach(s=>{
-      const c=counts[s.key];if(!c)return;
-      html+=`<div title="${s.key}: ${c}" style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${s.fg}">${c}</div>`;
-    });
-    if(counts.none){
-      html+=`<div title="Unassigned: ${counts.none}" style="flex:${counts.none};background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-hint)">${counts.none}</div>`;
-    }
+    html+=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">`;
+    SEGS.forEach(s=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:${s.bg};display:inline-block"></span>${s.key}</span>`);
+    html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg);border:.5px solid var(--border);display:inline-block"></span>—</span>`;
     html+=`</div>`;
-    html+=`<div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${assigned}/${total}</div>`;
+
+    html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
+    rls.forEach(r=>{
+      const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
+      allRowsList.forEach(row=>{
+        const{value}=consensusAnswer(r.id,row.id);
+        if(!value){counts.none++;return;}
+        letters(value).forEach(l=>{if(counts[l]!==undefined)counts[l]++;});
+      });
+      const assigned=total-counts.none;
+      html+=`<div style="display:flex;align-items:center;gap:10px">`;
+      html+=`<div style="width:36px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0" title="${r.full}">${r.label}</div>`;
+      html+=`<div style="flex:1;display:flex;border-radius:4px;overflow:hidden;height:30px;border:.5px solid var(--border-light)">`;
+      SEGS.forEach(s=>{
+        const c=counts[s.key];if(!c)return;
+        html+=`<div title="${s.key}: ${c}" style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${s.fg}">${c}</div>`;
+      });
+      if(counts.none){
+        html+=`<div title="Unassigned: ${counts.none}" style="flex:${counts.none};background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-hint)">${counts.none}</div>`;
+      }
+      html+=`</div>`;
+      html+=`<div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${assigned}/${total}</div>`;
+      html+=`</div>`;
+    });
     html+=`</div>`;
-  });
-  html+=`</div>`;
+  }
 
   container.innerHTML=html;
 }
@@ -1235,6 +1240,7 @@ function exportAgreedCSV(){
 
 // ==================== EXPORT NUDGE ====================
 let nudgeDismissed=false;
+let chartsShowWorkload=false;
 let nudgeTimer=null;
 
 function maybeShowExportNudge(){
