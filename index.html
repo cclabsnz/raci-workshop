@@ -667,14 +667,14 @@ function renderParticipants(){
 }
 
 function renderViewTabs(){
-  const VIEWS=[["assign","Assign"],["compare","Compare"],["matrix","Matrix"],["cards","Cards"]];
+  const VIEWS=[["assign","Assign"],["compare","Compare"],["matrix","Matrix"],["cards","Cards"],["charts","Charts"]];
   document.getElementById("viewTabs").innerHTML=VIEWS.map(([v,label])=>
     `<button class="tab-btn ${currentView===v?'active':''}" onclick="setView('${v}')">${label}</button>`
   ).join("");
 }
 function renderRoleTabs(){
   const el=document.getElementById("roleTabs");
-  if(currentView==="matrix"||currentView==="cards"){el.innerHTML="";return;}
+  if(currentView==="matrix"||currentView==="cards"||currentView==="charts"){el.innerHTML="";return;}
   el.innerHTML=effectiveRoles().map(r=>
     `<span class="role-tab-wrap">
       <button class="tab-btn ${currentRole===r.id?'active':''}" onclick="setRole('${r.id}')" title="${r.full}">${r.label}</button>
@@ -710,6 +710,7 @@ function renderMainContent(){
   else if(currentView==="compare")renderCompareView(el);
   else if(currentView==="matrix")renderMatrixView(el);
   else if(currentView==="cards")renderCardsView(el);
+  else if(currentView==="charts")renderChartsView(el);
   else renderCompareView(el);
 }
 
@@ -767,6 +768,93 @@ function renderCompareView(container){
   container.innerHTML=html;
 }
 
+
+// ==================== CHARTS VIEW ====================
+function renderChartsView(container){
+  const rls=effectiveRoles();
+  const names=Object.keys(participants);
+  if(!names.length){container.innerHTML=`<p style="color:var(--text-muted);padding:20px">Waiting for participants to join and answer...</p>`;return;}
+
+  // Role colour palette (for treemap ownership)
+  const PALETTE=['#3B7DD8','#2D9E7A','#D4732A','#8B4EC4','#C4395E','#1E9AB0','#C49E2A','#5D8A3C'];
+  const roleColor={};
+  rls.forEach((r,i)=>roleColor[r.id]=PALETTE[i%PALETTE.length]);
+
+  // Classify a consensus value into one bucket (R > A > C > I > NA)
+  function primary(v){if(!v)return'none';if(v==='NA')return'NA';if(v.includes('R'))return'R';if(v.includes('A'))return'A';if(v.includes('C'))return'C';return'I';}
+
+  const allRowsList=[];
+  BASE_DOMAINS.forEach(d=>allRows(d.id).forEach(r=>allRowsList.push({...r,domain:d})));
+
+  // ── TREEMAP ──────────────────────────────────────────────
+  let html=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Accountability map</div>`;
+  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Each cell = one activity, coloured by who holds <strong>A</strong> (Accountable) per consensus.</p>`;
+
+  // Legend
+  html+=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"><span style="font-size:11px;color:var(--text-hint)">A →</span>`;
+  rls.forEach(r=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:${roleColor[r.id]};display:inline-block"></span>${r.label}</span>`);
+  html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:var(--surface-alt);border:.5px solid var(--border);display:inline-block"></span>None</span></div>`;
+
+  // Domain blocks
+  html+=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px">`;
+  BASE_DOMAINS.forEach(d=>{
+    const rows=allRows(d.id);
+    html+=`<div style="background:var(--surface);border:.5px solid var(--border-light);border-radius:var(--radius-lg);padding:10px;min-width:90px;max-width:220px">`;
+    html+=`<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:${d.color};margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:3px">`;
+    rows.forEach(row=>{
+      let aRoleId=null;
+      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(value&&value.includes('A'))aRoleId=r.id;});
+      const bg=aRoleId?roleColor[aRoleId]:'var(--surface-alt)';
+      const border=aRoleId?'none':'.5px solid var(--border)';
+      const aLabel=aRoleId?(rls.find(r=>r.id===aRoleId)||{label:'?'}).label:'—';
+      html+=`<div title="${row.a} · A: ${aLabel}" style="width:20px;height:20px;border-radius:3px;background:${bg};border:${border};opacity:0.85;cursor:default;flex-shrink:0"></div>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+
+  // ── STACKED BAR ──────────────────────────────────────────
+  html+=`<div class="domain-header" style="color:var(--text);margin-bottom:10px">Workload per role</div>`;
+  html+=`<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Consensus assignment per activity, each activity counted once using its primary letter.</p>`;
+
+  const SEGS=[
+    {key:'R',bg:'#85B7EB',fg:'#0C447C'},
+    {key:'A',bg:'#5DCAA5',fg:'#085041'},
+    {key:'C',bg:'#F0997B',fg:'#712B13'},
+    {key:'I',bg:'#D3D1C7',fg:'#4A4A46'},
+    {key:'NA',bg:'var(--border-light)',fg:'var(--text-hint)'},
+  ];
+  const total=allRowsList.length;
+
+  // Legend
+  html+=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">`;
+  SEGS.forEach(s=>html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:${s.bg};display:inline-block"></span>${s.key}</span>`);
+  html+=`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg);border:.5px solid var(--border);display:inline-block"></span>—</span>`;
+  html+=`</div>`;
+
+  html+=`<div style="display:flex;flex-direction:column;gap:10px">`;
+  rls.forEach(r=>{
+    const counts={R:0,A:0,C:0,I:0,NA:0,none:0};
+    allRowsList.forEach(row=>{const{value}=consensusAnswer(r.id,row.id);counts[primary(value)]++;});
+    html+=`<div style="display:flex;align-items:center;gap:10px">`;
+    html+=`<div style="width:36px;text-align:right;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0" title="${r.full}">${r.label}</div>`;
+    html+=`<div style="flex:1;display:flex;border-radius:4px;overflow:hidden;height:30px;border:.5px solid var(--border-light)">`;
+    SEGS.forEach(s=>{
+      const c=counts[s.key];if(!c)return;
+      html+=`<div title="${s.key}: ${c}" style="flex:${c};background:${s.bg};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${s.fg}">${c}</div>`;
+    });
+    if(counts.none){
+      html+=`<div title="Unassigned: ${counts.none}" style="flex:${counts.none};background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-hint)">${counts.none}</div>`;
+    }
+    html+=`</div>`;
+    html+=`<div style="font-size:11px;color:var(--text-hint);flex-shrink:0;width:60px">${total - counts.none}/${total}</div>`;
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+
+  container.innerHTML=html;
+}
 
 // ==================== ACTIONS ====================
 function setView(v){currentView=v;renderAll();}
