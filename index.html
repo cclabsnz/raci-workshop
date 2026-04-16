@@ -470,10 +470,12 @@ function connectToRoom(room, name){
       // If currentRole was removed, fall back to first available
       if(!effectiveRoles().find(r=>r.id===currentRole)&&effectiveRoles().length)
         currentRole=effectiveRoles()[0].id;
-      // Auto-save my answers to localStorage after every sync
+      // Auto-save full session to localStorage after every sync
       const mine=participants[myName]?.answers;
       if(mine&&Object.keys(mine).length>0)
         localStorage.setItem("raci-answers-"+myName,JSON.stringify(mine));
+      if(roomId&&Object.keys(participants).length>0)
+        localStorage.setItem("raci-session-"+roomId,JSON.stringify({participants,customActivities}));
       // On first sync, restore from localStorage if server has fewer answers
       if(!hasRestoredAnswers&&myName){
         hasRestoredAnswers=true;
@@ -684,7 +686,7 @@ function renderRoleTabs(){
 }
 function renderActionBtns(){
   const el=document.getElementById("actionBtns");
-  if(currentView==="assign") el.innerHTML=`<button class="btn btn-sm" onclick="importMyAnswers()">Import answers</button> <button class="btn btn-sm" onclick="exportMyAnswers()">Export answers</button> <button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear role</button>`;
+  if(currentView==="assign") el.innerHTML=`<button class="btn btn-sm" onclick="importMyAnswers()">Import session</button> <button class="btn btn-sm" onclick="exportMyAnswers()">Export session</button> <button class="btn btn-danger btn-sm" onclick="clearMyRole()">Clear role</button>`;
   else if(currentView==="compare") el.innerHTML=`<button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>`;
   else if(currentView==="matrix") el.innerHTML=`<button class="btn btn-sm" onclick="exportAgreedCSV()">Export CSV</button> <button class="btn btn-sm" onclick="exportPDF()">Export PDF</button>`;
   else if(currentView==="charts") el.innerHTML=`<button class="btn btn-sm" onclick="exportPDF()">Export PDF</button>`;
@@ -799,7 +801,7 @@ function renderChartsView(container){
     html+=`<div style="display:flex;flex-wrap:wrap;gap:3px">`;
     rows.forEach(row=>{
       let aRoleId=null;
-      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(value&&value.includes('A'))aRoleId=r.id;});
+      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(value&&ltrs(value).includes('A'))aRoleId=r.id;});
       const bg=aRoleId?roleColor[aRoleId]:'var(--surface-alt)';
       const border=aRoleId?'none':'.5px solid var(--border)';
       const aLabel=aRoleId?(rls.find(r=>r.id===aRoleId)||{label:'?'}).label:'—';
@@ -996,7 +998,7 @@ function renderChartsView(container){
     const doms=BASE_DOMAINS;const N=doms.length;
     const step=(2*Math.PI)/N;
     function pt(angle,r){return{x:CX+r*Math.sin(angle),y:CY-r*Math.cos(angle)};}
-    const maxVal=Math.max(1,...rls.map(r=>Math.max(...doms.map(d=>allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&value.includes('A');}).length))));
+    const maxVal=Math.max(1,...rls.map(r=>Math.max(...doms.map(d=>allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&ltrs(value).includes('A');}).length))));
     // Grid rings
     let grid='';
     [0.25,0.5,0.75,1].forEach(f=>{
@@ -1014,7 +1016,7 @@ function renderChartsView(container){
     let polys='';
     rls.forEach(r=>{
       const pts=doms.map((d,i)=>{
-        const cnt=allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&value.includes('A');}).length;
+        const cnt=allRows(d.id).filter(row=>{const{value}=consensusAnswer(r.id,row.id);return value&&ltrs(value).includes('A');}).length;
         const{x,y}=pt(i*step,(cnt/maxVal)*MAXR);
         return`${x.toFixed(1)},${y.toFixed(1)}`;
       }).join(' ');
@@ -1247,7 +1249,7 @@ function exportPDF(){
     let cells='';
     rows.forEach(row=>{
       let aRoleId=null;
-      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(value&&value.includes('A'))aRoleId=r.id;});
+      rls.forEach(r=>{const{value}=consensusAnswer(r.id,row.id);if(value&&ltrs(value).includes('A'))aRoleId=r.id;});
       const bg=aRoleId?roleColor[aRoleId]:'#e8e8e8';
       const aLabel=aRoleId?(rls.find(r=>r.id===aRoleId)||{label:'?'}).label:'—';
       cells+=`<span title="${row.a} · A: ${aLabel}" style="display:inline-block;width:14px;height:14px;border-radius:2px;background:${bg};opacity:0.85;margin:1px"></span>`;
@@ -1327,12 +1329,16 @@ function exportPDF(){
 
 function exportMyAnswers(){
   hideExportNudge();
-  const answers=myAnswers();
-  localStorage.setItem("raci-answers-"+myName,JSON.stringify(answers));
-  const data=JSON.stringify({name:myName,answers},null,2);
+  const data=JSON.stringify({
+    version:2,
+    roomId,
+    exportedAt:new Date().toISOString(),
+    participants,
+    customActivities,
+  },null,2);
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));
-  a.download=`raci-answers-${myName.replace(/\s+/g,"-").toLowerCase()}.json`;
+  a.download=`raci-session-${roomId}-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
 function importMyAnswers(){
@@ -1344,16 +1350,25 @@ function importMyAnswers(){
     reader.onload=evt=>{
       try{
         const data=JSON.parse(evt.target.result);
-        if(!data.answers||typeof data.answers!=="object")throw new Error();
-        const existing=myAnswers();
-        const existingCount=Object.keys(existing).length;
-        const incoming=data.answers;
-        const overwritten=Object.keys(incoming).filter(k=>existing[k]&&existing[k]!==incoming[k]).length;
-        if(overwritten>0&&!confirm(`This will overwrite ${overwritten} answer${overwritten>1?"s":""} you've already set. Continue?`))return;
-        // Merge: imported answers overlay existing ones
-        const merged={...existing,...incoming};
-        send({type:"bulk_answers",answers:merged});
-        showToast(`Imported ${Object.keys(incoming).length} answers`);
+        if(data.participants&&typeof data.participants==="object"){
+          // Session format (v2+)
+          const pCount=Object.keys(data.participants).length;
+          const aCount=(data.customActivities||[]).length;
+          const msg=`Import session with ${pCount} participant${pCount!==1?"s":""}${aCount>0?` and ${aCount} custom activit${aCount!==1?"ies":"y"}`:""}? Existing live answers will not be overwritten.`;
+          if(!confirm(msg))return;
+          send({type:"import_session",participants:data.participants,customActivities:data.customActivities||[]});
+          showToast(`Imported ${pCount} participant${pCount!==1?"s":""}`);
+        }else if(data.answers&&typeof data.answers==="object"){
+          // Legacy personal format (v1)
+          const existing=myAnswers();
+          const incoming=data.answers;
+          const overwritten=Object.keys(incoming).filter(k=>existing[k]&&existing[k]!==incoming[k]).length;
+          if(overwritten>0&&!confirm(`This will overwrite ${overwritten} answer${overwritten>1?"s":""} you've already set. Continue?`))return;
+          send({type:"bulk_answers",answers:{...existing,...incoming}});
+          showToast(`Imported ${Object.keys(incoming).length} answers`);
+        }else{
+          throw new Error();
+        }
       }catch{showToast("Import failed — invalid file");}
     };
     reader.readAsText(file);
